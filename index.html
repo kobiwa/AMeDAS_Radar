@@ -1,0 +1,623 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1.0">
+	<title>気温・風・降水分布の表示</title>
+ 	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+	<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+	<link rel="apple-touch-icon" href="./favicon180.png" sizes="180x180">
+	<link rel="icon alternate" type="image/png" href="./favicon192.png" sizes="192x192">
+	<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+	<!-- 矢羽根の回転に使用 Copyright (c) 2015 Benjamin Becquet https://github.com/bbecquet/Leaflet.RotatedMarker/blob/master/LICENSE -->
+	<script src="./leaflet.rotatedMarker.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+	<style>
+		html, body {height: 100%; width: 100%; margin:0px; padding:0px; border:0px; font-family:"Helvetica Neue", Arial, Helvetica, sans-serif;}
+		#leafletmap{height: 100%; width: 100%; margin:0px; padding:0px; border:0px;}
+		#header{width: 100%; overflow: hidden; float:left; padding:0px; margin:0px; border:0px; background-color: #F0F0FF;}
+		.header_cat{float:left; background-color: #CCF; margin:3px 3px 3px 1px; padding: 3px 3px; font-size:16px; }
+		#lsDateTime{background-color: #F0F0FF;}
+		select {font-size:16px;}
+		#btnLegend{color: #FFFFFF; background-color: #0080FF; border-radius:2px; text-decoration:none; padding:1px;}
+		#btnRadar{color: #FFFFFF; background-color: #0080FF; border-radius:2px; text-decoration:none; padding:1px;}
+		#btnOpacity{font-size:14px; color: #FFFFFF; background-color: #0080FF; border-radius:2px; text-decoration:none; padding:1px;}
+		#btnCurPos{color: #FFFFFF; background-color: #0080FF; border-radius:2px; text-decoration:none; padding:1px;}
+		.btnTime{font-size:14px; color: #FFFFFF; background-color: #0080FF; border-radius:2px; text-decoration:none; padding:1px;}
+
+		.StrTemp00{color:#002080; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #FFF, -1px -1px 0px #FFF, -1px 1px 0px #FFF, 1px -1px 0px #FFF, 1px 0px 0px #FFF, -1px  0px 0px #FFF, 0px 1px 0px #FFF, 0px -1px 0px #FFF;}
+		.StrTemp01{color:#0030C8; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #FFF, -1px -1px 0px #FFF, -1px 1px 0px #FFF, 1px -1px 0px #FFF, 1px 0px 0px #FFF, -1px  0px 0px #FFF, 0px 1px 0px #FFF, 0px -1px 0px #FFF;}
+		.StrTemp02{color:#0039E4; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #FFF, -1px -1px 0px #FFF, -1px 1px 0px #FFF, 1px -1px 0px #FFF, 1px 0px 0px #FFF, -1px  0px 0px #FFF, 0px 1px 0px #FFF, 0px -1px 0px #FFF;}
+		.StrTemp03{color:#0041FF; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #FFF, -1px -1px 0px #FFF, -1px 1px 0px #FFF, 1px -1px 0px #FFF, 1px 0px 0px #FFF, -1px  0px 0px #FFF, 0px 1px 0px #FFF, 0px -1px 0px #FFF;}
+		.StrTemp04{color:#006CFF; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #FFF, -1px -1px 0px #FFF, -1px 1px 0px #FFF, 1px -1px 0px #FFF, 1px 0px 0px #FFF, -1px  0px 0px #FFF, 0px 1px 0px #FFF, 0px -1px 0px #FFF;}
+		.StrTemp05{color:#0096FF; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #FFF, -1px -1px 0px #FFF, -1px 1px 0px #FFF, 1px -1px 0px #FFF, 1px 0px 0px #FFF, -1px  0px 0px #FFF, 0px 1px 0px #FFF, 0px -1px 0px #FFF;}
+		.StrTemp06{color:#5DC1FF; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+		.StrTemp07{color:#B9EBFF; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+		.StrTemp08{color:#DCF5F8; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+		.StrTemp09{color:#FFFFF0; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+		.StrTemp10{color:#FFFFC3; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+		.StrTemp11{color:#FFFF96; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+		.StrTemp12{color:#FDFA4B; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+		.StrTemp13{color:#FAF500; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+		.StrTemp14{color:#FDC700; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+		.StrTemp15{color:#FF9900; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+		.StrTemp16{color:#FF6100; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+		.StrTemp17{color:#FF2800; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+		.StrTemp18{color:#E41440; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+		.StrTemp19{color:#C80080; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+
+		.legend {line-height: 20px; color: #555; background-color: #FFF; padding: 2px}
+		.legend i {width: 18px; height: 18px; float: left; margin-right: 8px;  opacity: 1;}
+
+		.bg_onetime_popup {position:fixed; top:0px ;left:0px; z-index:9999; width:100%; height:100%; background-color:rgba(0, 0, 0, 0.5); opacity:0; visibility:hidden; transition:0.5s; }
+		.bg_onetime_popup.js_active {opacity:1; visibility:visible;}
+		.onetime_popup {position:absolute; top:50%; left:50%; transform:translateX(-50%) translateY(-50%); width:70%; min-width: 300px;background-color: #fff;cursor: pointer;}
+		.onetime_popup_title { position:relative; padding:5px 5px; margin:0px; background-color: #3388dd; color: #fff; font-size: 16px; text-align: center; line-height: 20px;}
+		.onetime_popup_title::before,
+		.onetime_popup_title::after {position:absolute; top:50%; right: 20px; transform: translateY(-50%); width:20px; height: 2px; background-color: #fff; content: "";}
+		.onetime_popup_title::before { transform: rotate(45deg); }
+		.onetime_popup_title::after { transform: rotate(-45deg); }
+		.onetime_popup_content { padding: 30px 30px; text-align: left; font-size:12px }
+	</style>
+</head>
+<body>
+	<!-- 念のための処理はじまり -->
+	<!-- 参考: https://migi.me/javascript/popup-modal-window-only-once/ -->
+	<script type="text/javascript">
+	    window.addEventListener('load', function() {
+	        if( !localStorage.getItem('disp_popup') ) {
+	            localStorage.setItem('disp_popup', 'on');
+	            var popup = document.getElementsByClassName('bg_onetime_popup');
+	            popup[0].classList.add('js_active');
+	            popup[0].onclick = function() {
+	                popup[0].classList.remove('js_active');
+	            }
+	        }
+	    }, false);
+	</script>
+	<div class="bg_onetime_popup">
+	    <div class="onetime_popup">
+	        <p class="onetime_popup_title">このページについて(免責事項)</p>
+	        <div class="onetime_popup_content">
+	        	このウインドウを閉じた時点、下記の全てに同意したものとみなします。
+	        	<ul style="list-style-type:disc">
+	        		<li>このページの作者は、このサイトから入手された情報により発生した、あらゆる損害に関して一切の責任を負いません。</li>
+	        		<li>このページは、作者が個人的に使用する目的で作成したものであり、常に正常に動作することを第三者に対して保証するものではありません。
+	        			処理等にバグ等の不具合があったとしても、作者は修正の責任を負わないものとします。</li>
+	        		<li>このページは気象庁サイトから取得してきたJSONを元に図化しているものです。
+	        			JSONの仕様等は公表されておらず、推測に基づいて解読しています。そのため、JSONの解釈に誤りがあったり、予告なしに変更される可能性があります。
+	        			解釈の誤りや仕様変更等があった場合でも、作者は修正の義務を負わないものとします。</li>
+	        	</ul>
+	        </div>
+	    </div>
+	</div>
+	<!-- 念のための処理おわり -->
+
+	<div id="header">
+		<div class="header_cat">
+			AMeDAS
+			<select id="lsDateTime" onchange="GetSelectedDateForA()">
+			</select>
+			<a href="javascript:OffsetTime(1)" class="btnTime">-10分</a>
+			<a href="javascript:OffsetTime(-1)" class="btnTime">+10分</a>
+		</div>
+		<div class="header_cat">
+			気温凡例 <a href="javascript:SwitchLegendT()" id="btnLegend">表示</a>
+		</div>
+		<div class="header_cat">
+			レーダー画像
+			<a href="javascript:SwitchRadar()" id="btnRadar">表示</a>
+				<a href="javascript:SwitchOpacitySlider()" id="btnOpacity">透過</a>
+				<input type="range"  min="0" max="100" value=0 step="1" id="sldRadar" style="width:150px;">
+		</div>
+		<div class="header_cat">
+			<a href="javascript:MoveToCurPos()" id="btnCurPos">現在地</a>
+		</div>
+	</div>
+	<div id="leafletmap">
+	<script language="javascript" type="text/javascript">
+		//▼グローバル変数
+		const MaxWind = 12; //上限となる風速(これ以上の矢羽根未整備)
+		let lgAMeDAS; //レイヤグループ:地上観測
+		let lyTempStr, lyTempCrl, lyWindBarbL, lyWindBarbS; //気温文字、気温○、矢羽根(大)、矢羽(小)
+		let lyPal, lyBlk; //ベースレイヤ
+		let lyRadar; //レーダー
+		let lcMain; //レイヤコントロール
+		let htObsInfo = null; //観測点の情報(Key:観測点コード)
+		let gjPoints = null;
+		let ctLegT = null;
+		let arRadarTs = null; //レーダー画像の時刻(JST)
+		let elSlider = document.getElementById('sldRadar'); //透過度
+		elSlider.addEventListener('change', ChangeRadarOpacity);
+		document.getElementById('sldRadar').style.display = "none";
+		
+		//カラーコード・最低カテゴリ上限値(月別)・カテゴリのStep
+		const sColors = ["#002080","#0030C8","#0039E4","#0041FF","#006CFF","#0096FF","#5DC1FF","#B9EBFF","#DCF5F8","#FFFFF0","#FFFFC3","#FFFF96","#FDFA4B","#FAF500","#FDC700","#FF9900","#FF6100","#FF2800","#E41440","#C80080"];
+		const dMinTs = [-16,-16,-12,-8,-4,0,2,4,0,-4,-10,-14];
+		const dTStep = 2;
+		
+		//地図を生成（初期表示の中心座標，ズームレベル，レイヤなどをオプションで設定）
+		let map = L.map('leafletmap', {center: [35.69,139.75], zoom: 9, minZoom:5, maxZoom:16});
+		
+		//ペイン
+		let pnCrl = map.createPane("PaneCircle");
+		let pnRdr = map.createPane("PaneRadar");
+		pnRdr.style.mixBlendMode = "multiply";
+		pnCrl.style.zIndex = 640;
+		
+		//最新時刻から288個(6*24*2)の時刻を取得してOptionタグに追加する
+		function GetTimes(){
+			let url='https://www.jma.go.jp/bosai/amedas/data/latest_time.txt';
+			let rd = new FileReader();
+			let xmlHttp = new XMLHttpRequest();
+			xmlHttp.open("GET",url,true);
+		 	xmlHttp.send(null);
+			xmlHttp.onload = function(){
+				let data = xmlHttp.responseText;
+				let dt = new Date(data);
+				let tgSel = document.getElementById("lsDateTime");
+				GetObsInfo(formatDate(dt, "yyyyMMddHHmmss"));
+				while(tgSel.lastChild){ tgSel.removeChild(tgSel.lastChild); }
+				for(let i = 1; i <= 288; i++){
+					let tgOpt = document.createElement("option");
+					tgOpt.text = formatDate(dt, "yyyy/MM/dd HH:mm");
+					tgOpt.value = formatDate(dt, "yyyyMMddHHmmss");
+					tgSel.appendChild(tgOpt);
+					dt.setMinutes(dt.getMinutes() - 10);
+				}
+				//画面高さを再調整(Optionに登録されるとFloatが変わるため
+				SetDivWidthHight();
+			}
+		}
+		
+		//Dateオブジェクトから指定書式の文字列を返す
+		//https://zukucode.com/2017/04/javascript-date-format.html
+		function formatDate (date, format) {
+			format = format.replace(/yyyy/g, date.getFullYear());
+			format = format.replace(/MM/g, ('0' + (date.getMonth() + 1)).slice(-2));
+			format = format.replace(/dd/g, ('0' + date.getDate()).slice(-2));
+			format = format.replace(/HH/g, ('0' + date.getHours()).slice(-2));
+			format = format.replace(/mm/g, ('0' + date.getMinutes()).slice(-2));
+			format = format.replace(/ss/g, ('0' + date.getSeconds()).slice(-2));
+			format = format.replace(/SSS/g, ('00' + date.getMilliseconds()).slice(-3));
+			return format;
+		};
+		
+		//リストボックスで選択された日付を渡す(AMeDAS)
+		function GetSelectedDateForA(){
+			//リストボックスで選択された値(日付:yyyyMMddHHmmSS)
+			const DateTime = document.getElementById("lsDateTime").value;
+			GetObsInfo(DateTime);
+		}
+		
+		//±10分
+		function OffsetTime(iShift){
+			let tgOpt = document.getElementById("lsDateTime");
+			let i;
+			if(tgOpt.selectedIndex+iShift < 0){
+				i = 0;
+			} else if(tgOpt.options.length <= tgOpt.selectedIndex+iShift){
+				i = tgOpt.options.length-1;
+			} else {
+				i = tgOpt.selectedIndex+iShift;
+			}
+			tgOpt.options[i].selected = true;
+			GetObsInfo(tgOpt.options[i].value);
+		}
+		
+		//観測点の情報を持っているか判別した後で観測値取得関数を呼び出す
+		function GetObsInfo(DateTime){
+			const url='https://www.jma.go.jp/bosai/amedas/const/amedastable.json';
+			if(!htObsInfo){
+				$.getJSON(url)
+					.done(
+						function(data, status, xhr){ htObsInfo = data; GetObsData(data, DateTime); }
+					);
+			} else {
+				GetObsData(htObsInfo, DateTime);
+			}
+		}
+		
+		//観測値を取得する
+		function GetObsData(ObsInfo, DateTime){
+			const url='https://www.jma.go.jp/bosai/amedas/data/map/' + DateTime +'.json';
+			$.getJSON(url)
+				.done(function(ObsData, status, xhr){
+					//リセット
+					gjPoints = new GeoJson();
+					if(map.hasLayer(lyTempStr)){ map.removeLayer(lyTempStr); lyTempStr=null; }
+					if(map.hasLayer(lyTempCrl)){ map.removeLayer(lyTempCrl); lyTempStr=null;}
+					if(map.hasLayer(lyWindBarbL)){ map.removeLayer(lyWindBarbL); lyTempStr=null;}
+					if(map.hasLayer(lyWindBarbS)){ map.removeLayer(lyWindBarbS); lyTempStr=null;}
+
+					//▼GeoJSON作成
+					for (let code in ObsData) {
+						let dLon = ObsInfo[code].lon[0]+ObsInfo[code].lon[1]/60;
+						let dLat = ObsInfo[code].lat[0]+ObsInfo[code].lat[1]/60;
+						let dTemp = 'NA';
+						if('temp' in ObsData[code]){
+							if(ObsData[code].temp[1] == 0){ dTemp = ObsData[code].temp[0]; }
+						}
+						let dPrec1h = 'NA';
+						if('precipitation1h' in ObsData[code]){
+							if(ObsData[code].precipitation1h[1] == 0){ dPrec1h = ObsData[code].precipitation1h[0]; }
+						}
+						let dWindDir = 'NA';
+						let dWindSpd = 'NA';
+						if('wind' in ObsData[code]){
+							if(ObsData[code].wind[1] == 0){ dWindSpd = ObsData[code].wind[0]; }
+							if(ObsData[code].windDirection[1] == 0){ dWindDir = ObsData[code].windDirection[0]; }
+						}
+						//gjPoints:GeoJsonクラス→少し下で定義している(GeoJSONの書式に準拠)
+						//PointFeatureクラス→こちらも下で定義、GeoJSONの地物の書式に準拠
+						gjPoints.features.push(new PointFeature(dLon, dLat, code, ObsInfo[code].kjName, DateTime, dTemp, dPrec1h, dWindDir, dWindSpd));
+		  			}
+		  			
+		  			//▼レイヤ作成
+		  			//AMeDAS気温(str)
+		  			lyTempStr = L.geoJSON(gjPoints, {
+		  				onEachFeature: CreatePopup,
+		  				pointToLayer: function(feature, latlng){
+		  					if(!isNaN(feature.properties.Temp)){
+		  						let sCls = Temp2Cls(feature.properties.Temp);
+		  						let sTemp = feature.properties.Temp.toFixed(1);
+		  						return L.marker(latlng, {icon:L.divIcon({html:sTemp, className:sCls, iconSize:[50,16], iconAnchor:[25,-5], zIndexOffset:2000})});
+		  					}
+		  				}
+		  			});
+	
+		  			//AMeDAS気温(Cercle)
+		  			lyTempCrl = L.geoJSON(gjPoints, {
+		  				onEachFeature: CreatePopup,
+		  				pointToLayer: function(feature, latlng){
+		  					if(!isNaN(feature.properties.Temp)){
+		  						let dT = feature.properties.Temp;
+		  						return L.circleMarker(latlng, {radius:4, fillColor:Temp2Color(dT), fillOpacity: 1, color:"#000000", weight:0.5, pane:"PaneCircle", attribution: "<a href='http://www.jma.go.jp/'>AMeDAS & 降水ナウキャスト:気象庁</a>" });
+		  					}
+		  				}
+		  			});
+	
+		  			//AMeDAS風向風速(矢羽大)
+		  			lyWindBarbL = L.geoJSON(gjPoints, {
+		  				onEachFeature: CreatePopup,
+		  				pointToLayer: function(feature, latlng){
+		  					if(!isNaN(feature.properties.WindSpd) && !isNaN(feature.properties.WindDir)){
+		  						let iSpd = Math.round(feature.properties.WindSpd);
+		  						if(MaxWind < iSpd){iSpd = MaxWind;}
+		  						let ico = L.icon({
+		  							iconUrl:'./svg_barb/'+('00' + iSpd).slice(-2)+'.svg',
+		  							iconRetinaUrl:'./svg_barb/'+('00' + iSpd).slice(-2)+'.svg',
+		  							iconSize: [16.5, 47.25],
+		  							iconAnchor: [2.25, 47.25],
+		  							popupAnchor: [0, 0],
+		  						});
+		  						let dAng = 22.5 * feature.properties.WindDir;
+		  						return L.marker(latlng, {icon: ico, rotationAngle: dAng});
+		  					}
+		  				}
+		  			});
+					
+		  			//AMeDAS風向風速(矢羽小)
+		  			lyWindBarbS = L.geoJSON(gjPoints, {
+		  				onEachFeature: CreatePopup,
+		  				pointToLayer: function(feature, latlng){
+		  					if(!isNaN(feature.properties.WindSpd) && !isNaN(feature.properties.WindDir)){
+		  						let iSpd = Math.round(feature.properties.WindSpd);
+		  						if(MaxWind < iSpd){iSpd = MaxWind;}
+		  						let ico = L.icon({
+		  							iconUrl:'./svg_barb/'+('00' + iSpd).slice(-2)+'.svg',
+		  							iconRetinaUrl:'./svg_barb/'+('00' + iSpd).slice(-2)+'.svg',
+		  							iconSize: [11, 31.5],
+		  							iconAnchor: [1.5, 31.5],
+		  							popupAnchor: [0, 0],
+		  						});
+		  						let dAng = 22.5 * feature.properties.WindDir;
+		  						return L.marker(latlng, {icon:ico, rotationAngle:dAng});
+		  					}
+		  				}
+		  			});
+		  			
+		  			
+		  			map.addLayer(lyTempCrl);
+		  			LayerSwitchByZScale();
+				});
+			//レーダーの表示制御
+			if(document.getElementById("btnRadar").text != "非表示"){
+				GetRadarTimes(DateTime);
+			}
+		}
+		
+		//レーダーの時刻を取得する
+		function GetRadarTimes(AMeDAS_Date){
+			arRadarTs = new Array();
+			const url='https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N1.json';
+			$.getJSON(url)
+				.done(
+					function(data, status, xhr){
+						for(let i in data){
+							arRadarTs.push(data[i].basetime+data[i].validtime);
+						}
+						AddRadarLayer(AMeDAS_Date);
+					}
+				);
+		}
+		
+		//レーダーのレイヤを追加する
+		function AddRadarLayer(AMeDAS_Date){
+			if(map.hasLayer(lyRadar)){map.removeLayer(lyRadar); lyRadar=null;}
+			let dtAMeDAS = Fmtd2DateTime(AMeDAS_Date);
+			dtAMeDAS.setHours(dtAMeDAS.getHours() - 9); //JST→UTC
+			AMeDAS_Date = formatDate(dtAMeDAS, "yyyyMMddHHmmss");
+			let tgRdr = document.getElementById("btnRadar");
+			let dOpacity = 1 - Number(elSlider.value) /100;
+			for(let i=0; i < arRadarTs.length; i++){
+				let sB = arRadarTs[i].substring(0,14);
+				let sV = arRadarTs[i].substring(14,28);
+				if(sV == AMeDAS_Date){
+					lyRadar = L.tileLayer('https://www.jma.go.jp/bosai/jmatile/data/nowc/'+sB+'/none/'+sV+'/surf/hrpns/{z}/{x}/{y}.png',
+						{minZoom:4, maxZoom:16, maxNativeZoom:10, opacity: dOpacity, pane:"PaneRadar"}
+					);
+					map.addLayer(lyRadar);
+					tgRdr.text = "表示中";
+					return;
+				}
+			}
+			tgRdr.text = "表示不可";
+		}
+		
+		//レーダー画像の表示・非表示切り替え
+		function SwitchRadar(){
+			if(map.hasLayer(lyRadar)){
+				map.removeLayer(lyRadar);
+				let tgRdr = document.getElementById("btnRadar");
+				tgRdr.text = "非表示";
+			}
+			else{
+				const AMeDAS_Date = document.getElementById("lsDateTime").value;
+				AddRadarLayer(AMeDAS_Date)
+			;}
+		}
+		
+		//透過度設定スライダ表示切り替え
+		function SwitchOpacitySlider(){
+			let elRdOpac = document.getElementById('sldRadar'); //透過度
+			if(elRdOpac.style.display == "none"){
+				elRdOpac.style.display = "block";
+			} else {
+				elRdOpac.style.display = "none";
+			}
+			SetDivWidthHight();
+		}
+		
+		//レーダー画像の透過度(スライダ)
+		function ChangeRadarOpacity(){
+			if(lyRadar && map.hasLayer(lyRadar)){
+				let dOpacity = 1 - Number(elSlider.value) /100;
+				lyRadar.setOpacity(dOpacity);
+			}
+		}
+		
+		//ポップアップ
+		function CreatePopup(feature, layer) {
+		    if (feature.properties && feature.properties.Caption) {
+				layer.bindPopup(feature.properties.Caption);
+		    }
+		}
+		
+		//気温から色に対応したクラス名を返す
+		function Temp2Cls(Temp){
+			const dtNow = new Date();
+			const dMin = dMinTs[dtNow.getMonth()]; //配列のIndexなので+1不要
+			let i = Math.ceil((Temp-dMin)/dTStep)
+			if(i < 0){i = 0}
+			else if(sColors.length <= i){i = sColors.length-1;}
+			return "StrTemp" + ('00'+i).slice(-2);
+		}
+		function Temp2Color(Temp){
+			const dtNow = new Date();
+			const dMin = dMinTs[dtNow.getMonth()]; //配列のIndexなので+1不要
+			let i = Math.ceil((Temp-dMin)/dTStep)
+			if(i < 0){i = 0}
+			else if(sColors.length <= i){i = sColors.length-1;}
+			return sColors[i];
+		}
+		
+		//▼凡例
+		function SwitchLegendT(){
+			let tgLegend = document.getElementById("btnLegend");
+			const dtNow = new Date();
+			const dMin = dMinTs[dtNow.getMonth()]; //配列のIndexなので+1不要
+			if(!ctLegT){
+				//凡例なし→凡例を作成して地図に追加する
+				ctLegT = L.control({position: 'bottomright'});
+				ctLegT.onAdd = function(map){
+					let div = L.DomUtil.create('div', 'legend');
+					div.innerHTML = "Temp.[℃]<br>";
+					for(let i=sColors.length-1; 0 <= i; i--){
+						let dTU = dMin + dTStep*i;
+						let dTL = dMin + dTStep*(i-1);
+						let dTM = (dTU+dTL)/2;
+						if(i == 0){
+							div.innerHTML +=
+   					    	'<i style="background:' + Temp2Color(dTM) + '"></i> &ndash;' + dTU + '<br>';
+   				    	}else if(i < sColors.length-1){
+							div.innerHTML +=
+   					    	'<i style="background:' + Temp2Color(dTM) + '"></i> ' + dTL + '&ndash;' + dTU + '<br>';
+   				    	} else {
+							div.innerHTML +=
+   					    	'<i style="background:' + Temp2Color(dTM) + '"></i> ' + dTU + '&ndash; <br>';
+   				    	}
+					}
+					return div;
+				}
+				ctLegT.addTo(map);
+				tgLegend.text = "表示中";
+
+			} else {
+				map.removeControl(ctLegT);
+				ctLegT = null;
+				tgLegend.text = "非表示";
+			}
+		}
+		
+		
+		//▼GeoJson関連の定義
+		class GeoJson{
+			constructor(){
+				this.type = 'FeatureCollection';
+				this.name = 'AMeDAS';
+				this.features = [];
+			}
+		}
+		class PointFeature{
+			constructor(x, y, Code, Name, DateTime, Temp, Prec1h, WindDir, WindSpd){
+				let sTemp=Temp;
+				if(!isNaN(Temp)){sTemp=Temp+'℃';}
+				let sPrec1h=Prec1h;
+				if(!isNaN(Prec1h)){sPrec1h=Prec1h+'mm';}
+				let sWindDir=WindDir;
+				if(!isNaN(WindDir)){sWindDir=22.5*WindDir+'°';}
+				let sWindSpd=WindSpd;
+				if(!isNaN(WindSpd)){sWindSpd=WindSpd+'m/s';}
+				
+				this.type="Feature";
+				this.properties={};
+				this.properties['Code']=Code;
+				this.properties['Name']=Name;
+				this.properties['TempFlg']=0;
+				this.properties['Temp']=Temp;
+				this.properties['Prec1h']=Prec1h;
+				this.properties['WindDir']=WindDir;
+				this.properties['WindSpd']=WindSpd;
+				this.properties['Caption']= 
+					Name +'<br>'+
+					DateTime2Fmtd(DateTime) +'<br>'+
+					'気温:'+ sTemp + '<br>' +
+					'降水量:'+ sPrec1h + '<br>' +
+					'風向:'+ sWindDir + '<br>' +
+					'風速:'+ sWindSpd;
+				this.geometry={};
+				this.geometry['type']="Point";
+				this.geometry['coordinates']=[];
+				this.geometry['coordinates'][0]=x;
+				this.geometry['coordinates'][1]=y;
+			}
+		}
+		
+		//yyyyMMddHHmmSS→ yyyy/MM/dd HH:mm
+		function DateTime2Fmtd(DateTime){
+			return 	DateTime.substring(0,4)+'/'+DateTime.substring(4,6)+'/'+DateTime.substring(6,8)+' '+
+				DateTime.substring(8,10)+':'+DateTime.substring(10,12);
+		}
+		
+		//yyyyMMddHHmmSS→Date
+		function Fmtd2DateTime(FormattedString){
+			let iYr = Number(FormattedString.substring(0,4));
+			let iMt = Number(FormattedString.substring(4,6))-1;
+			let iDy = Number(FormattedString.substring(6,8));
+			let iHr = Number(FormattedString.substring(8,10));
+			let iMn = Number(FormattedString.substring(10,12));
+			return new Date(iYr, iMt, iDy, iHr, iMn);
+		}
+		
+		//画面高さ&幅の取得→CSS適用
+		$(document).ready(SetDivWidthHight);
+		$(window).resize(SetDivWidthHight);	
+		function SetDivWidthHight(){
+			let iWH = $(window).height(); //ウインドウの高さ
+			let iWW = $(window).width();  //ウインドウの幅
+			let iHCs = new Array();
+			$("div.header_cat").each(function(i){iHCs[i]=$(this).outerHeight(true);});
+			let iHC = Math.max(iHCs);
+			$(".header_cat").css("height", (iHC+2)+"px");
+			let iHH = $("#header").outerHeight(true);  //ヘッダ部分の高さ
+			$("#leafletmap").css("height", (iWH -iHH - 2) + "px");
+		}
+		
+		//スケールによる表示制御
+		function LayerSwitchByZScale(){
+			let zoom = map.getZoom();
+			if(zoom < 9){
+				if(map.hasLayer(lyTempStr)){map.removeLayer(lyTempStr);}
+				if(map.hasLayer(lyWindBarbL)){map.removeLayer(lyWindBarbL);}
+				if(lyWindBarbS){ map.addLayer(lyWindBarbS);}
+			} else {
+				if(map.hasLayer(lyWindBarbS)){map.removeLayer(lyWindBarbS);}
+				if(lyWindBarbL){map.addLayer(lyWindBarbL);}
+				if(lyTempStr) {map.addLayer(lyTempStr);}
+			}
+		}
+		
+		//現在地へ移動する
+		function MoveToCurPos(){
+			//現在地取得API対応
+			if(!navigator.geolocation){
+				alert("位置情報を取得できません(ブラウザが非対応)。");
+				let tgPos = document.getElementById("btnCurPos");
+				tgPos.text = "N/A(現在地)";
+				return;
+			}
+			
+			//位置情報取得Option
+			//参考: https://www.achiachi.net/blog/leaflet/geolocation
+			let opts = {	enableHighAccuracy:false, timeout:5000, maximumAge:0 };
+			
+			//取得成功時
+			function success(pos){ 
+				map.setView([pos.coords.latitude, pos.coords.longitude]);
+				let tgPos = document.getElementById("btnCurPos");
+				tgPos.text = "現在地";
+				return;
+			}
+			
+			//取得失敗時
+			function fail(ex) { 
+				alert("位置情報を取得できません(タイムアウト・ブロック等)。"); 
+				let tgPos = document.getElementById("btnCurPos");
+				tgPos.text = "N/A(現在地)";
+			}
+			
+			//コマンド実行
+			navigator.geolocation.getCurrentPosition(success, fail, opts);
+		}
+		
+		
+		//ここから表示処理呼び出し
+		GetTimes();
+		//切り替え可能とするタイルレイヤを生成（タイルURL，ズーム範囲，著作権表示などをオプションで設定）
+		lyPal = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
+			minZoom:5, maxZoom:18, 
+			attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>地理院タイル</a>"
+			});
+		lyBlk = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/blank/{z}/{x}/{y}.png', {
+			minZoom:5, maxZoom:16, maxNativeZoom:14, opacity:0.7,
+			attribution: "<a href='http://maps.gsi.go.jp/development/ichiran.html' target='_blank'>地理院タイル</a>"
+			});
+		lyBlk.addTo(map);
+		//
+		// 
+		//レイヤコントロールに切り替え可能とするレイヤを追加
+		lcMain = L.control.layers({
+				'地理院タイル（白地図）': lyBlk,
+				'地理院タイル（淡色地図）': lyPal,
+			}, 
+			{},
+			{collapsed: true}
+		).addTo(map);
+		
+		//スケールコントロールを追加（オプションはフィート単位を非表示）
+		L.control.scale({imperial: false}).addTo(map);
+		
+		//凡例表示
+		SwitchLegendT();
+		
+		//▼mapイベント:ズームレベル変更時の表示制御
+		//zoom < 9  では lyTempCrl, lyWindBarbSを表示
+		//9 <= zoom では lyTempCrl, lyTempStr, lyWindBarbLを表示
+		map.on('zoomend', LayerSwitchByZScale);
+
+	</script>
+	</div>
+</body>
+</html>
