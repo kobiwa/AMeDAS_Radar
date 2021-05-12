@@ -3,7 +3,7 @@
 
 実際の動作はこちらで確認できます。
 <ul>
-  <li><a href="https://kobiwa.github.io/AMeDAS_Radar/">https://kobiwa.github.io/AMeDAS_Radar/</a></li>
+  <li><a href="https://www.kobiwa.net/AMeDASmap/">https://www.kobiwa.net/AMeDASmap/</a></li>
   <li><a href="https://kobiwa.github.io/AMeDAS_Radar/">https://kobiwa.github.io/AMeDAS_Radar/</a></li>
  </ul>
  
