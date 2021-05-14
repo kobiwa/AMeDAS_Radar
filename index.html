@@ -18,38 +18,27 @@
 		h1 {margin:0px; padding:0px; border:0px; font-size:18px; font-weight:600; line-height:18px; color:#04C; text-align:left; float:left; }
 		#leafletmap{height: 100%; width: 100%; margin:0px; padding:0px; border:0px; position:relative;}
 		#menu{overflow:hidden; float:left; padding:0px; margin:0px; border:0px; background-color: #DEF; position:absolute; top:0px; left:0px; z-index:9999;}
-		#menu_label{display:block; margin:5px; padding:5px; border-radius:2px; line-height:1; background:#08F; font-size:14px; text-align:center; color:#FFF; cursor:pointer; }
-		#menu_chk{display:none; }
+		#menu_topunder {overflow:hidden; width: 100%;}
+		.btnOther,#btnExpandMenu, #btnCurPos{color: #FFF; background-color: #08F; border-radius:2px; text-decoration:none; padding:1px;}
 		#menu_sub{display:none; overflow:hidden}
-		#menu_chk:checked + #menu_sub{display:block; opacity:1;}
 		.menu_subCat{width:100%; margin:0; padding:5px; border-top:solid 1px #08A; background-color:#DEF;}
 		#lsDateTime{font-size:16px; background-color: #DEF;}
 		#btnLegend{color: #FFF; background-color: #08F; border-radius:2px; text-decoration:none; padding:1px;}
 		#btnRadar{color: #FFF; background-color: #08F; border-radius:2px; text-decoration:none; padding:1px;}
 		#btnOpacity{font-size:14px; color: #FFF; background-color: #08F; border-radius:2px; text-decoration:none; padding:1px;}
-		#btnCurPos{color: #FFF; background-color: #08F; border-radius:2px; text-decoration:none; padding:1px;}
-		.btnOther{font-size:16px; color:#FFF; background-color:#08F; border-radius:2px; text-decoration:none; padding:1px;}
-
+		.txtTemp{font-size:16pt; transform:scale(0.8); text-align:right; width:30px; background:#DEF; }
+		
 		.StrTemp00{color:#002080; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #FFF, -1px -1px 0px #FFF, -1px 1px 0px #FFF, 1px -1px 0px #FFF, 1px 0px 0px #FFF, -1px  0px 0px #FFF, 0px 1px 0px #FFF, 0px -1px 0px #FFF;}
-		.StrTemp01{color:#0030C8; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #FFF, -1px -1px 0px #FFF, -1px 1px 0px #FFF, 1px -1px 0px #FFF, 1px 0px 0px #FFF, -1px  0px 0px #FFF, 0px 1px 0px #FFF, 0px -1px 0px #FFF;}
-		.StrTemp02{color:#0039E4; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #FFF, -1px -1px 0px #FFF, -1px 1px 0px #FFF, 1px -1px 0px #FFF, 1px 0px 0px #FFF, -1px  0px 0px #FFF, 0px 1px 0px #FFF, 0px -1px 0px #FFF;}
-		.StrTemp03{color:#0041FF; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #FFF, -1px -1px 0px #FFF, -1px 1px 0px #FFF, 1px -1px 0px #FFF, 1px 0px 0px #FFF, -1px  0px 0px #FFF, 0px 1px 0px #FFF, 0px -1px 0px #FFF;}
-		.StrTemp04{color:#006CFF; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #FFF, -1px -1px 0px #FFF, -1px 1px 0px #FFF, 1px -1px 0px #FFF, 1px 0px 0px #FFF, -1px  0px 0px #FFF, 0px 1px 0px #FFF, 0px -1px 0px #FFF;}
-		.StrTemp05{color:#0096FF; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #FFF, -1px -1px 0px #FFF, -1px 1px 0px #FFF, 1px -1px 0px #FFF, 1px 0px 0px #FFF, -1px  0px 0px #FFF, 0px 1px 0px #FFF, 0px -1px 0px #FFF;}
-		.StrTemp06{color:#5DC1FF; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
-		.StrTemp07{color:#B9EBFF; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
-		.StrTemp08{color:#DCF5F8; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
-		.StrTemp09{color:#FFFFF0; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
-		.StrTemp10{color:#FFFFC3; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
-		.StrTemp11{color:#FFFF96; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
-		.StrTemp12{color:#FDFA4B; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
-		.StrTemp13{color:#FAF500; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
-		.StrTemp14{color:#FDC700; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
-		.StrTemp15{color:#FF9900; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
-		.StrTemp16{color:#FF6100; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
-		.StrTemp17{color:#FF2800; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
-		.StrTemp18{color:#E41440; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
-		.StrTemp19{color:#C80080; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+		.StrTemp01{color:#0039E4; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #FFF, -1px -1px 0px #FFF, -1px 1px 0px #FFF, 1px -1px 0px #FFF, 1px 0px 0px #FFF, -1px  0px 0px #FFF, 0px 1px 0px #FFF, 0px -1px 0px #FFF;}
+		.StrTemp02{color:#006CFF; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+		.StrTemp03{color:#5DC1FF; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+		.StrTemp04{color:#DCF5F8; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+		.StrTemp05{color:#FFFFC3; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+		.StrTemp06{color:#FDFA4B; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+		.StrTemp07{color:#FDC700; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+		.StrTemp08{color:#FF6100; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+		.StrTemp09{color:#E41440; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #FFF, -1px -1px 0px #FFF, -1px 1px 0px #FFF, 1px -1px 0px #FFF, 1px 0px 0px #FFF, -1px  0px 0px #FFF, 0px 1px 0px #FFF, 0px -1px 0px #FFF;}
+		.StrTemp10{color:#C80080; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #FFF, -1px -1px 0px #FFF, -1px 1px 0px #FFF, 1px -1px 0px #FFF, 1px 0px 0px #FFF, -1px  0px 0px #FFF, 0px 1px 0px #FFF, 0px -1px 0px #FFF;}
 
 		.legend {line-height: 20px; color: #555; background-color: #FFF; padding: 2px}
 		.legend i {width: 18px; height: 18px; float: left; margin-right: 8px;  opacity: 1;}
@@ -63,6 +52,7 @@
 		.onetime_popup_title::before { transform: rotate(45deg); }
 		.onetime_popup_title::after { transform: rotate(-45deg); }
 		.onetime_popup_content { padding: 30px 30px; text-align: left; font-size:12px }
+		
 	</style>
 </head>
 <body>
@@ -102,21 +92,28 @@
 	<div id="menu">
 		<select id="lsDateTime" onchange="GetSelectedDateForA()">
 		</select>
-		<a href="javascript:OffsetTime(1)" class="btnOther" style="color:#FFF">-10分</a>
-		<a href="javascript:OffsetTime(-1)" class="btnOther" style="color:#FFF">+10分</a>
-		
-		<label for="menu_chk" id="menu_label">その他の設定</label>
-		<input type="checkbox" id="menu_chk"/>
+		<a href="javascript:GetTimes()" class="btnOther">更新</a>
+		<a href="javascript:OffsetTime(1)" class="btnOther">-10分</a>
+		<a href="javascript:OffsetTime(-1)" class="btnOther">+10分</a>
+		<div id="menu_topunder">
+			<a href="javascript:ExpandMenu()" id="btnExpandMenu">その他の設定</a>
+			<a href="javascript:MoveToCurPos()" id="btnCurPos">現在地</a>
+		</div>
 		<div id="menu_sub">
 			<div class="menu_subCat">
 				レーダー画像 <a href="javascript:SwitchRadar()" id="btnRadar">表示</a><br>
-				透過度 <input type="range"  min="0" max="100" value=0 step="1" id="sldRadar" style="width:100px;">
+				透過度 <input type="range" min="0" max="100" value=0 step="1" id="sldRadar" style="width:100px;">
 			</div>
 			<div class="menu_subCat">
-				気温凡例 <a href="javascript:SwitchLegendT()" id="btnLegend">表示</a>
-			</div>
-			<div class="menu_subCat">
-				<a href="javascript:MoveToCurPos()" id="btnCurPos">現在地へ移動する</a>
+				気温凡例 <a href="javascript:SwitchLegendT()" id="btnLegend">表示</a><br>
+				<form name="legend_temp">
+					<label><input name="tscale" type="radio" value="jma" checked>気象庁</label><br>
+					<label><input name="tscale" type="radio" value="tokyo">自動設定(月別)</label><br>
+					<label><input name="tscale" type="radio" value="original">独自2<span style="font-size:12px">(入力後反映ボタンを押下)</span></label>
+					<a href="javascript:SetTempRangeOriginal()" class="btnOther">反映</a><br>
+					T<span style="vertical-align:sub;">0</span>:<input type="text" value="-10" class="txtTemp">
+					<span style="vertical-align:sub;">Δ</span>T:<input type="text" value="5" class="txtTemp">
+				</form>
 			</div>
 			<div class="menu_subCat">
 				背景図選択
@@ -128,7 +125,7 @@
 	<div id="leafletmap">
 		<script language="javascript" type="text/javascript">
 		//▼グローバル変数
-		const MaxWind = 12; //上限となる風速(これ以上の矢羽根未整備)
+		const MaxWind = 35; //上限となる風速(これ以上の矢羽根未整備)
 		let lyTempStr, lyTempCrl, lyWindBarbL, lyWindBarbS; //気温文字、気温○、矢羽根(大)、矢羽(小)
 		let lyPal, lyBlk; //ベースレイヤ
 		let lyRadar; //レーダー
@@ -141,9 +138,10 @@
 		elSlider.addEventListener('change', ChangeRadarOpacity);
 		
 		//カラーコード・最低カテゴリ上限値(月別)・カテゴリのStep
-		const sColors = ["#002080","#0030C8","#0039E4","#0041FF","#006CFF","#0096FF","#5DC1FF","#B9EBFF","#DCF5F8","#FFFFF0","#FFFFC3","#FFFF96","#FDFA4B","#FAF500","#FDC700","#FF9900","#FF6100","#FF2800","#E41440","#C80080"];
-		const dMinTs = [-16,-16,-12,-8,-4,0,2,4,0,-4,-10,-14];
-		const dTStep = 2;
+		const sColors = ["#002080", "#0039E4", "#006CFF", "#5DC1FF", "#DCF5F8", "#FFFFC3", "#FDFA4B", "#FDC700", "#FF6100", "#E41440", "#C80080"];
+		let dMinTs = [-2, -2, 0, 6, 10, 14, 18, 18, 14, 10, 4, 0]; //独自の配色用(月別)
+		let dMinT = -10; //デフォルト(気象庁配色)
+		let dTStep = 5;  //デフォルト(気象庁配色)
 		
 		//地図を生成（初期表示の中心座標，ズームレベル，レイヤなどをオプションで設定）
 		let map = L.map('leafletmap', {center:[35.69,139.75], zoomControl:false, zoom:9, minZoom:5, maxZoom:16});
@@ -192,6 +190,12 @@
 				let data = xmlHttp.responseText;
 				let dt = new Date(data);
 				let elSel = document.getElementById("lsDateTime");
+				
+				//まず削除
+				while(elSel.lastChild){elSel.removeChild(elSel.lastChild);}
+				$("#btnExpandMenu").css({'padding': ""});
+				$("#menu").css({'width': ""});
+				
 				GetObsInfo(formatDate(dt, "yyyyMMddHHmmss"));
 				while(elSel.lastChild){ elSel.removeChild(elSel.lastChild); }
 				for(let i = 1; i <= 288; i++){
@@ -204,9 +208,27 @@
 				//メニューの幅を固定する
 				let w = $("#menu").outerWidth(true);
 				$("#menu").css({'width':w+10+"px"});
-				//let elMenu = document.getElementById("menu");
-				//elMenu.style.width = elMenu.clientWidth;
+				
+				//メニュー二段目の調整
+				let w1 = $("#btnExpandMenu").outerWidth(true);
+				let w2 = $("#btnCurPos").outerWidth(true);
+				let p = (w-w1-w2)/2;
+				$("#btnExpandMenu").css({'padding':"1px " + p+"px"});
+				
+				//メニュー(追加設定)の調整
+				document.getElementById("sldRadar").style.width = (w-60)+"px";
+				if($('[name="tscale"]').val() != "original"){
+					document.legend_temp.elements[3].disabled=true;
+					document.legend_temp.elements[4].disabled=true;
+				}
 			}
+		}
+		
+		//メニュー表示・非表示
+		function ExpandMenu(){
+			let elSub = document.getElementById("menu_sub");
+			if(elSub.style.display=="block"){elSub.style.display="none";}
+			else{elSub.style.display="block";}
 		}
 		
 		//リストボックスで選択された日付を渡す(AMeDAS)
@@ -312,7 +334,7 @@
 		  				pointToLayer: function(feature, latlng){
 		  					if(!isNaN(feature.properties.WindSpd) && !isNaN(feature.properties.WindDir)){
 		  						let iSpd = Math.round(feature.properties.WindSpd);
-		  						if(MaxWind < iSpd){iSpd = MaxWind;}
+		  						if(MaxWind < iSpd){iSpd = 99;}
 		  						let ico = L.icon({
 		  							iconUrl:'./svg_barb/'+('00' + iSpd).slice(-2)+'.svg',
 		  							iconRetinaUrl:'./svg_barb/'+('00' + iSpd).slice(-2)+'.svg',
@@ -332,7 +354,7 @@
 		  				pointToLayer: function(feature, latlng){
 		  					if(!isNaN(feature.properties.WindSpd) && !isNaN(feature.properties.WindDir)){
 		  						let iSpd = Math.round(feature.properties.WindSpd);
-		  						if(MaxWind < iSpd){iSpd = MaxWind;}
+		  						if(MaxWind < iSpd){iSpd = 99;}
 		  						let ico = L.icon({
 		  							iconUrl:'./svg_barb/'+('00' + iSpd).slice(-2)+'.svg',
 		  							iconRetinaUrl:'./svg_barb/'+('00' + iSpd).slice(-2)+'.svg',
@@ -422,29 +444,83 @@
 		    }
 		}
 		
+		//▼凡例
 		//気温から色に対応したクラス名を返す
 		function Temp2Cls(Temp){
-			const dtNow = new Date();
-			const dMin = dMinTs[dtNow.getMonth()]; //配列のIndexなので+1不要
-			let i = Math.ceil((Temp-dMin)/dTStep)
+			let i = Math.ceil((Temp-dMinT)/dTStep)
 			if(i < 0){i = 0}
 			else if(sColors.length <= i){i = sColors.length-1;}
 			return "StrTemp" + ('00'+i).slice(-2);
 		}
 		function Temp2Color(Temp){
-			const dtNow = new Date();
-			const dMin = dMinTs[dtNow.getMonth()]; //配列のIndexなので+1不要
-			let i = Math.ceil((Temp-dMin)/dTStep)
+			let i = Math.ceil((Temp-dMinT)/dTStep)
 			if(i < 0){i = 0}
 			else if(sColors.length <= i){i = sColors.length-1;}
 			return sColors[i];
 		}
 		
-		//▼凡例
+		//凡例種別制御
+		$('[name="tscale"]').on('change', function(){
+			let val = $(this).val();
+			let elMinT = document.legend_temp.elements[3];
+			let elTStep = document.legend_temp.elements[4];
+			
+    		if(val == "jma"){
+    			elMinT.disabled=true;
+    			elTStep.disabled=true;
+    			dMinT = -10;
+    			dTStep = 5;
+    		} else if(val == "tokyo"){
+    			elMinT.disabled=true;
+    			elTStep.disabled=true;
+    			let dt = new Date();
+    			let iM = dt.getMonth();
+    			dMinT = dMinTs[iM];
+    			dTStep = 2;
+			} else {
+    			elMinT.disabled=false;
+    			elTStep.disabled=false;
+    		}
+    		SetTempRange();
+			map.removeControl(ctLegT);
+			ctLegT = null;    		
+    		SwitchLegendT();
+		});
+		
+		//気温のレンジ・幅
+		function SetTempRange(){
+			//凡例再描画
+			if(ctLegT){
+				map.removeControl(ctLegT);
+				ctLegT = null;
+			}
+			SwitchLegendT();
+			let elOpt = document.getElementById("lsDateTime");
+			GetObsInfo(elOpt.options[elOpt.selectedIndex].value);
+		}
+
+		//気温のレンジ・幅
+		function SetTempRangeOriginal(){
+			if(isNaN(document.legend_temp.elements[3].value)){dMinT = -10;}
+			else{dMinT = Number(document.legend_temp.elements[3].value);}
+			
+			if(isNaN(document.legend_temp.elements[4].value)){dTStep = 5;}
+			else{dTStep = Number(document.legend_temp.elements[4].value);}
+			
+			//凡例再描画
+			if(ctLegT){
+				map.removeControl(ctLegT);
+				ctLegT = null;
+			}
+			SwitchLegendT();
+			let elOpt = document.getElementById("lsDateTime");
+			GetObsInfo(elOpt.options[elOpt.selectedIndex].value);
+		}
+
+		
+		//レンジ・幅を凡例に反映
 		function SwitchLegendT(){
 			let elLegend = document.getElementById("btnLegend");
-			const dtNow = new Date();
-			const dMin = dMinTs[dtNow.getMonth()]; //配列のIndexなので+1不要
 			if(!ctLegT){
 				//凡例なし→凡例を作成して地図に追加する
 				ctLegT = L.control({position: 'bottomright'});
@@ -452,18 +528,18 @@
 					let div = L.DomUtil.create('div', 'legend');
 					div.innerHTML = "Temp.[℃]<br>";
 					for(let i=sColors.length-1; 0 <= i; i--){
-						let dTU = dMin + dTStep*i;
-						let dTL = dMin + dTStep*(i-1);
+						let dTU = dMinT + dTStep*i;
+						let dTL = dMinT + dTStep*(i-1);
 						let dTM = (dTU+dTL)/2;
 						if(i == 0){
 							div.innerHTML +=
-   					    	'<i style="background:' + Temp2Color(dTM) + '"></i> &ndash;' + dTU + '<br>';
+   					    	'<i style="background:' + Temp2Color(dTM) + '"></i> &lt; ' + dTU + '<br>';
    				    	}else if(i < sColors.length-1){
 							div.innerHTML +=
-   					    	'<i style="background:' + Temp2Color(dTM) + '"></i> ' + dTL + '&ndash;' + dTU + '<br>';
+   					    	'<i style="background:' + Temp2Color(dTM) + '"></i> ' + dTL + ' &ndash; ' + dTU + '<br>';
    				    	} else {
 							div.innerHTML +=
-   					    	'<i style="background:' + Temp2Color(dTM) + '"></i> ' + dTU + '&ndash; <br>';
+   					    	'<i style="background:' + Temp2Color(dTM) + '"></i> ' + dTL + ' &lt; <br>';
    				    	}
 					}
 					return div;
@@ -477,7 +553,6 @@
 				elLegend.text = "非表示";
 			}
 		}
-		
 		
 		//▼GeoJson関連の定義
 		class GeoJson{
@@ -583,7 +658,7 @@
 			if(!navigator.geolocation){
 				alert("位置情報を取得できません(ブラウザが非対応)。");
 				let elPos = document.getElementById("btnCurPos");
-				elPos.text = "現在地:取得不可";
+				elPos.style.background="#888";
 				return;
 			}
 			
@@ -595,7 +670,7 @@
 			function success(pos){ 
 				map.setView([pos.coords.latitude, pos.coords.longitude]);
 				let elPos = document.getElementById("btnCurPos");
-				elPos.text = "現在地へ移動する";
+				elPos.style.background="#08F";
 				return;
 			}
 			
@@ -603,7 +678,7 @@
 			function fail(ex) { 
 				alert("位置情報を取得できません(タイムアウト・ブロック等)。"); 
 				let elPos = document.getElementById("btnCurPos");
-				elPos.text = "現在地:取得不可";
+				elPos.style.background="#888";
 			}
 			
 			//コマンド実行
