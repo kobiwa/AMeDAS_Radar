@@ -280,6 +280,7 @@
 
 					//▼GeoJSON作成
 					for (let code in ObsData) {
+						if(code in ObsInfo === false) {continue;} //観測点情報が取れない場合は表示しない
 						let dLon = ObsInfo[code].lon[0]+ObsInfo[code].lon[1]/60;
 						let dLat = ObsInfo[code].lat[0]+ObsInfo[code].lat[1]/60;
 						let dTemp = 'NA';
