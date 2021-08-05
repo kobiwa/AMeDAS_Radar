@@ -126,6 +126,7 @@
 		<script language="javascript" type="text/javascript">
 		//▼グローバル変数
 		const MaxWind = 35; //上限となる風速(これ以上の矢羽根未整備)
+		let dLon, dLat, dZoom;
 		let lyTempStr, lyTempCrl, lyWindBarbL, lyWindBarbS; //気温文字、気温○、矢羽根(大)、矢羽(小)
 		let lyPal, lyBlk; //ベースレイヤ
 		let lyRadar; //レーダー
@@ -144,12 +145,13 @@
 		let dTStep = 5;  //デフォルト(気象庁配色)
 		
 		//地図を生成（初期表示の中心座標，ズームレベル，レイヤなどをオプションで設定）
-		let map = L.map('leafletmap', {center:[35.69,139.75], zoomControl:false, zoom:9, minZoom:5, maxZoom:16});
+		GetParams();
+		let map = L.map('leafletmap', {center:[dLat,dLon], zoomControl:false, zoom:dZoom, minZoom:5, maxZoom:16});
 		
 		//ペイン
 		let pnCrl = map.createPane("PaneCircle");
 		let pnRdr = map.createPane("PaneRadar");
-		pnRdr.style.mixBlendMode = "multiply";
+		pnRdr.style.mixBlendMode = "multiply"; //乗算合成
 		pnCrl.style.zIndex = 640;
 		
 		//▼ここから表示処理呼び出し
@@ -177,8 +179,34 @@
 		//zoom < 9  では lyTempCrl, lyWindBarbSを表示
 		//9 <= zoom では lyTempCrl, lyTempStr, lyWindBarbLを表示
 		map.on('zoomend', LayerSwitchByZScale);
+
+		//▼mapイベント:移動終了→中心位置取得→URL変更
+		map.on('moveend', function(){
+			dLon = map.getCenter().lng.toFixed(6);
+			dLat = map.getCenter().lat.toFixed(6);
+			ReplaceURL();
+		});
 		
 		//▼ここから関数集
+		//GETパラメータ取得
+		function GetParams(){
+			dLat = 35.69;
+			dLon = 139.75;
+			dZoom = 9;
+			let sQuery = window.location.search.replace(/^\?/,'');
+			if(!sQuery) {return;}
+			
+			let sParams = sQuery.split('&');
+			for(let i=0; i < sParams.length; i++){
+				let elem = sParams[i].split('=');
+				if(elem.length < 2) {continue;}
+				
+				if(elem[0]=='lat' && !isNaN(elem[1])){dLat=Number(elem[1]);}
+				else if(elem[0]=='lon'&& !isNaN(elem[1])){dLon=Number(elem[1]);}
+				else if(elem[0]=='z'&& !isNaN(elem[1])){dZoom=Number(elem[1]);}
+			}
+		}
+		
 		//最新時刻から288個(48時間分:6x48hr)の時刻を取得してOptionタグに追加する
 		function GetTimes(){
 			let url='https://www.jma.go.jp/bosai/amedas/data/latest_time.txt';
@@ -629,8 +657,8 @@
 		
 		//スケールによる表示制御
 		function LayerSwitchByZScale(){
-			let zoom = map.getZoom();
-			if(zoom < 9){
+			dZoom = map.getZoom();
+			if(dZoom < 9){
 				if(map.hasLayer(lyTempStr)){map.removeLayer(lyTempStr);}
 				if(map.hasLayer(lyWindBarbL)){map.removeLayer(lyWindBarbL);}
 				if(lyWindBarbS){ map.addLayer(lyWindBarbS);}
@@ -639,6 +667,14 @@
 				if(lyWindBarbL){map.addLayer(lyWindBarbL);}
 				if(lyTempStr) {map.addLayer(lyTempStr);}
 			}
+		}
+		
+		//URL変更
+		function ReplaceURL(){
+			let sQuery = "lat=" + dLat + "&"
+				+ "lon=" + dLon + "&"
+				+ "z=" + dZoom;
+			window.history.replaceState('', '', '?' + sQuery);
 		}
 		
 		//背景図選択
