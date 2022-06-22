@@ -8,6 +8,7 @@ function GetParams(){
 	if(!sQuery) {return;}
 	
 	let sParams = sQuery.split('&');
+	let bFlgT = 0;
 	for(let i=0; i < sParams.length; i++){
 		let elem = sParams[i].split('=');
 		if(elem.length < 2) {continue;}
@@ -15,6 +16,19 @@ function GetParams(){
 		if(elem[0]=='lat' && !isNaN(elem[1])){dLat=Number(elem[1]);}
 		else if(elem[0]=='lon'&& !isNaN(elem[1])){dLon=Number(elem[1]);}
 		else if(elem[0]=='z'&& !isNaN(elem[1])){dZoom=Number(elem[1]);}
+		else if(elem[0]=='t0'&& !isNaN(elem[1])){dMinT=Number(elem[1]); bFlgT=1; }
+		else if(elem[0]=='dt'&& !isNaN(elem[1])){dTStep=Number(elem[1]); bFlgT=1; }
+	}
+	
+	//気温設定(HTML上のコントロール反映)
+	if(bFlgT){
+		document.legend_temp.elements[0].checked = false;
+		document.legend_temp.elements[1].checked = true;
+		$('[name="tscale"]').val("original");
+		document.legend_temp.elements[2].value=dMinT;
+		document.legend_temp.elements[3].value=dTStep;
+		document.legend_temp.elements[2].disabled=false;
+		document.legend_temp.elements[3].disabled=false;
 	}
 }
 
@@ -57,8 +71,8 @@ function GetTimes(){
 		//メニュー(追加設定)の調整
 		document.getElementById("sldRadar").style.width = (w-60)+"px";
 		if($('[name="tscale"]').val() != "original"){
+			document.legend_temp.elements[2].disabled=true;
 			document.legend_temp.elements[3].disabled=true;
-			document.legend_temp.elements[4].disabled=true;
 		}
 	}
 }
@@ -112,10 +126,10 @@ function GetObsData(ObsInfo, DateTime){
 		.done(function(ObsData, status, xhr){
 			//リセット
 			gjPoints = new GeoJson();
-			if(map.hasLayer(lyTempStr)){ map.removeLayer(lyTempStr); lyTempStr=null; }
-			if(map.hasLayer(lyTempCrl)){ map.removeLayer(lyTempCrl); lyTempStr=null;}
-			if(map.hasLayer(lyWindBarbL)){ map.removeLayer(lyWindBarbL); lyTempStr=null;}
-			if(map.hasLayer(lyWindBarbS)){ map.removeLayer(lyWindBarbS); lyTempStr=null;}
+			if(lyTempStr != null && map.hasLayer(lyTempStr)){ map.removeLayer(lyTempStr); lyTempStr=null; }
+			if(lyTempCrl != null && map.hasLayer(lyTempCrl)){ map.removeLayer(lyTempCrl); lyTempStr=null;}
+			if(lyWindBarbL != null && map.hasLayer(lyWindBarbL)){ map.removeLayer(lyWindBarbL); lyTempStr=null;}
+			if(lyWindBarbS != null && map.hasLayer(lyWindBarbS)){ map.removeLayer(lyWindBarbS); lyTempStr=null;}
 
 			//▼GeoJSON作成
 			for (let code in ObsData) {
@@ -235,7 +249,7 @@ function GetRadarTimes(AMeDAS_Date){
 
 //レーダーのレイヤを追加する
 function AddRadarLayer(AMeDAS_Date){
-	if(map.hasLayer(lyRadar)){map.removeLayer(lyRadar); lyRadar=null;}
+	if(lyRadar != null && map.hasLayer(lyRadar)){map.removeLayer(lyRadar); lyRadar=null;}
 	let dtAMeDAS = Fmtd2DateTime(AMeDAS_Date);
 	dtAMeDAS.setHours(dtAMeDAS.getHours() - 9); //JST→UTC
 	AMeDAS_Date = formatDate(dtAMeDAS, "yyyyMMddHHmmss");
@@ -303,24 +317,21 @@ function Temp2Color(Temp){
 jQuery(function() {
 	$('[name="tscale"]').on('change', function(){
 		let val = $(this).val();
-		let elMinT = document.legend_temp.elements[3];
-		let elTStep = document.legend_temp.elements[4];
+		let elMinT = document.legend_temp.elements[2];
+		let elTStep = document.legend_temp.elements[3];
 		
 		if(val == "jma"){
 			elMinT.disabled=true;
 			elTStep.disabled=true;
 			dMinT = -10;
 			dTStep = 5;
-		} else if(val == "tokyo"){
-			elMinT.disabled=true;
-			elTStep.disabled=true;
-			let dt = new Date();
-			let iM = dt.getMonth();
-			dMinT = dMinTs[iM];
-			dTStep = 2;
+			document.legend_temp.elements[2].value=dMinT;
+			document.legend_temp.elements[3].value=dTStep;
+			ReplaceURL();
 		} else {
 			elMinT.disabled=false;
 			elTStep.disabled=false;
+			ReplaceURL();
 		}
 		SetTempRange();
 		map.removeControl(ctLegT);
@@ -339,15 +350,16 @@ function SetTempRange(){
 	SwitchLegendT();
 	let elOpt = document.getElementById("lsDateTime");
 	GetObsInfo(elOpt.options[elOpt.selectedIndex].value);
+	ReplaceURL();
 }
 
 //気温のレンジ・幅
 function SetTempRangeOriginal(){
-	if(isNaN(document.legend_temp.elements[3].value)){dMinT = -10;}
-	else{dMinT = Number(document.legend_temp.elements[3].value);}
+	if(isNaN(document.legend_temp.elements[2].value)){dMinT = -10;}
+	else{dMinT = Number(document.legend_temp.elements[2].value);}
 	
-	if(isNaN(document.legend_temp.elements[4].value)){dTStep = 5;}
-	else{dTStep = Number(document.legend_temp.elements[4].value);}
+	if(isNaN(document.legend_temp.elements[3].value)){dTStep = 5;}
+	else{dTStep = Number(document.legend_temp.elements[3].value);}
 	
 	//凡例再描画
 	if(ctLegT){
@@ -357,6 +369,7 @@ function SetTempRangeOriginal(){
 	SwitchLegendT();
 	let elOpt = document.getElementById("lsDateTime");
 	GetObsInfo(elOpt.options[elOpt.selectedIndex].value);
+	ReplaceURL();
 }
 
 //レンジ・幅を凡例に反映
@@ -486,6 +499,9 @@ function ReplaceURL(){
 	let sQuery = "lat=" + dLat + "&"
 		+ "lon=" + dLon + "&"
 		+ "z=" + dZoom;
+	if(dMinT != -10 || dTStep != 5){
+		sQuery = sQuery + "&" + "t0=" + dMinT + "&" + "dt=" + dTStep;
+	}
 	window.history.replaceState('', '', '?' + sQuery);
 }
 

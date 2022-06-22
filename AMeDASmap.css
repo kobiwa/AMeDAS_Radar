@@ -1,0 +1,38 @@
+html, body {height: 100%; width: 100%; margin:0px; padding:0px; border:0px; font-family:"Helvetica Neue", Arial, Helvetica, sans-serif;}
+h1 {margin:0px; padding:0px; border:0px; font-size:18px; font-weight:600; line-height:18px; color:#04C; text-align:left; float:left; }
+#leafletmap{height: 100%; width: 100%; margin:0px; padding:0px; border:0px; position:relative;}
+#menu{overflow:hidden; float:left; padding:0px; margin:0px; border:0px; background-color: #DEF; position:absolute; top:0px; left:0px; z-index:9999;}
+#menu_topunder {overflow:hidden; width: 100%;}
+.btnOther,#btnExpandMenu, #btnCurPos{color: #FFF; background-color: #08F; border-radius:2px; text-decoration:none; padding:1px;}
+#menu_sub{display:none; overflow:hidden}
+.menu_subCat{width:100%; margin:0; padding:5px; border-top:solid 1px #08A; background-color:#DEF;}
+#lsDateTime{font-size:16px; background-color: #DEF;}
+#btnLegend{color: #FFF; background-color: #08F; border-radius:2px; text-decoration:none; padding:1px;}
+#btnRadar{color: #FFF; background-color: #08F; border-radius:2px; text-decoration:none; padding:1px;}
+#btnOpacity{font-size:14px; color: #FFF; background-color: #08F; border-radius:2px; text-decoration:none; padding:1px;}
+.txtTemp{font-size:16pt; transform:scale(0.8); text-align:right; width:30px; background:#DEF; }
+
+.StrTemp00{color:#002080; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #FFF, -1px -1px 0px #FFF, -1px 1px 0px #FFF, 1px -1px 0px #FFF, 1px 0px 0px #FFF, -1px  0px 0px #FFF, 0px 1px 0px #FFF, 0px -1px 0px #FFF;}
+.StrTemp01{color:#0039E4; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #FFF, -1px -1px 0px #FFF, -1px 1px 0px #FFF, 1px -1px 0px #FFF, 1px 0px 0px #FFF, -1px  0px 0px #FFF, 0px 1px 0px #FFF, 0px -1px 0px #FFF;}
+.StrTemp02{color:#006CFF; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+.StrTemp03{color:#5DC1FF; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+.StrTemp04{color:#DCF5F8; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+.StrTemp05{color:#FFFFC3; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+.StrTemp06{color:#FDFA4B; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+.StrTemp07{color:#FDC700; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+.StrTemp08{color:#FF6100; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+.StrTemp09{color:#E41440; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
+.StrTemp10{color:#C80080; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #FFF, -1px -1px 0px #FFF, -1px 1px 0px #FFF, 1px -1px 0px #FFF, 1px 0px 0px #FFF, -1px  0px 0px #FFF, 0px 1px 0px #FFF, 0px -1px 0px #FFF;}
+
+.legend {line-height: 20px; color: #555; background-color: #FFF; padding: 2px}
+.legend i {width: 18px; height: 18px; float: left; margin-right: 8px;  opacity: 1;}
+
+.bg_onetime_popup {position:fixed; top:0px ;left:0px; z-index:9999; width:100%; height:100%; background-color:rgba(0, 0, 0, 0.5); opacity:0; visibility:hidden; transition:0.5s; }
+.bg_onetime_popup.js_active {opacity:1; visibility:visible;}
+.onetime_popup {position:absolute; top:50%; left:50%; transform:translateX(-50%) translateY(-50%); width:70%; min-width: 300px;background-color: #fff;cursor: pointer;}
+.onetime_popup_title { position:relative; padding:5px 5px; margin:0px; background-color: #3388dd; color: #fff; font-size: 16px; text-align: center; line-height: 20px;}
+.onetime_popup_title::before,
+.onetime_popup_title::after {position:absolute; top:50%; right: 20px; transform: translateY(-50%); width:20px; height: 2px; background-color: #fff; content: "";}
+.onetime_popup_title::before { transform: rotate(45deg); }
+.onetime_popup_title::after { transform: rotate(-45deg); }
+.onetime_popup_content { padding: 30px 30px; text-align: left; font-size:12px }

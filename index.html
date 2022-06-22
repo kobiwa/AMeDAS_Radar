@@ -5,58 +5,18 @@
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width,initial-scale=1.0">
 	<title>気温・風・降水分布の表示</title>
- 	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+ 	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.8.0/dist/leaflet.css" />
 	<link rel="icon" href="./favicon.svg" type="image/svg+xml">
 	<link rel="apple-touch-icon" href="./favicon180.png" sizes="180x180">
 	<link rel="icon alternate" type="image/png" href="./favicon192.png" sizes="192x192">
-	<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+	<script src="https://unpkg.com/leaflet@1.8.0/dist/leaflet.js"></script>
 	<!-- 矢羽根の回転に使用 Copyright (c) 2015 Benjamin Becquet https://github.com/bbecquet/Leaflet.RotatedMarker/blob/master/LICENSE -->
 	<script src="https://bbecquet.github.io/Leaflet.RotatedMarker/leaflet.rotatedMarker.js"></script>
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
 	
 	<!-- 地図表示のコード -->
 	<script src="./AMeDASmap.js"></script>
-	<style>
-		html, body {height: 100%; width: 100%; margin:0px; padding:0px; border:0px; font-family:"Helvetica Neue", Arial, Helvetica, sans-serif;}
-		h1 {margin:0px; padding:0px; border:0px; font-size:18px; font-weight:600; line-height:18px; color:#04C; text-align:left; float:left; }
-		#leafletmap{height: 100%; width: 100%; margin:0px; padding:0px; border:0px; position:relative;}
-		#menu{overflow:hidden; float:left; padding:0px; margin:0px; border:0px; background-color: #DEF; position:absolute; top:0px; left:0px; z-index:9999;}
-		#menu_topunder {overflow:hidden; width: 100%;}
-		.btnOther,#btnExpandMenu, #btnCurPos{color: #FFF; background-color: #08F; border-radius:2px; text-decoration:none; padding:1px;}
-		#menu_sub{display:none; overflow:hidden}
-		.menu_subCat{width:100%; margin:0; padding:5px; border-top:solid 1px #08A; background-color:#DEF;}
-		#lsDateTime{font-size:16px; background-color: #DEF;}
-		#btnLegend{color: #FFF; background-color: #08F; border-radius:2px; text-decoration:none; padding:1px;}
-		#btnRadar{color: #FFF; background-color: #08F; border-radius:2px; text-decoration:none; padding:1px;}
-		#btnOpacity{font-size:14px; color: #FFF; background-color: #08F; border-radius:2px; text-decoration:none; padding:1px;}
-		.txtTemp{font-size:16pt; transform:scale(0.8); text-align:right; width:30px; background:#DEF; }
-		
-		.StrTemp00{color:#002080; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #FFF, -1px -1px 0px #FFF, -1px 1px 0px #FFF, 1px -1px 0px #FFF, 1px 0px 0px #FFF, -1px  0px 0px #FFF, 0px 1px 0px #FFF, 0px -1px 0px #FFF;}
-		.StrTemp01{color:#0039E4; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #FFF, -1px -1px 0px #FFF, -1px 1px 0px #FFF, 1px -1px 0px #FFF, 1px 0px 0px #FFF, -1px  0px 0px #FFF, 0px 1px 0px #FFF, 0px -1px 0px #FFF;}
-		.StrTemp02{color:#006CFF; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
-		.StrTemp03{color:#5DC1FF; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
-		.StrTemp04{color:#DCF5F8; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
-		.StrTemp05{color:#FFFFC3; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
-		.StrTemp06{color:#FDFA4B; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
-		.StrTemp07{color:#FDC700; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
-		.StrTemp08{color:#FF6100; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
-		.StrTemp09{color:#E41440; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #FFF, -1px -1px 0px #FFF, -1px 1px 0px #FFF, 1px -1px 0px #FFF, 1px 0px 0px #FFF, -1px  0px 0px #FFF, 0px 1px 0px #FFF, 0px -1px 0px #FFF;}
-		.StrTemp10{color:#C80080; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #FFF, -1px -1px 0px #FFF, -1px 1px 0px #FFF, 1px -1px 0px #FFF, 1px 0px 0px #FFF, -1px  0px 0px #FFF, 0px 1px 0px #FFF, 0px -1px 0px #FFF;}
-
-		.legend {line-height: 20px; color: #555; background-color: #FFF; padding: 2px}
-		.legend i {width: 18px; height: 18px; float: left; margin-right: 8px;  opacity: 1;}
-
-		.bg_onetime_popup {position:fixed; top:0px ;left:0px; z-index:9999; width:100%; height:100%; background-color:rgba(0, 0, 0, 0.5); opacity:0; visibility:hidden; transition:0.5s; }
-		.bg_onetime_popup.js_active {opacity:1; visibility:visible;}
-		.onetime_popup {position:absolute; top:50%; left:50%; transform:translateX(-50%) translateY(-50%); width:70%; min-width: 300px;background-color: #fff;cursor: pointer;}
-		.onetime_popup_title { position:relative; padding:5px 5px; margin:0px; background-color: #3388dd; color: #fff; font-size: 16px; text-align: center; line-height: 20px;}
-		.onetime_popup_title::before,
-		.onetime_popup_title::after {position:absolute; top:50%; right: 20px; transform: translateY(-50%); width:20px; height: 2px; background-color: #fff; content: "";}
-		.onetime_popup_title::before { transform: rotate(45deg); }
-		.onetime_popup_title::after { transform: rotate(-45deg); }
-		.onetime_popup_content { padding: 30px 30px; text-align: left; font-size:12px }
-		
-	</style>
+	<link rel="stylesheet" href="./AMeDASmap.css" />
 </head>
 <body>
 	<!-- 念のための表示はじまり -->
@@ -111,8 +71,8 @@
 				気温凡例 <a href="javascript:SwitchLegendT()" id="btnLegend">表示</a><br>
 				<form name="legend_temp">
 					<label><input name="tscale" type="radio" value="jma" checked>気象庁</label><br>
-					<label><input name="tscale" type="radio" value="tokyo">自動設定(月別)</label><br>
-					<label><input name="tscale" type="radio" value="original">独自2<span style="font-size:12px">(入力後反映ボタンを押下)</span></label>
+					<!--label><input name="tscale" type="radio" value="tokyo">自動設定(月別)</label><br-->
+					<label><input name="tscale" type="radio" value="original">独自<span style="font-size:12px">(入力後反映ボタンを押下)</span></label>
 					<a href="javascript:SetTempRangeOriginal()" class="btnOther">反映</a><br>
 					T<span style="vertical-align:sub;">0</span>:<input type="text" value="-10" class="txtTemp">
 					<span style="vertical-align:sub;">Δ</span>T:<input type="text" value="5" class="txtTemp">
@@ -130,9 +90,9 @@
 		//▼グローバル変数
 		const MaxWind = 35; //上限となる風速(これ以上の矢羽根未整備)
 		let dLon, dLat, dZoom;
-		let lyTempStr, lyTempCrl, lyWindBarbL, lyWindBarbS; //気温文字、気温○、矢羽根(大)、矢羽(小)
+		let lyTempStr = null, lyTempCrl = null, lyWindBarbL = null, lyWindBarbS = null; //気温文字、気温○、矢羽根(大)、矢羽(小)
 		let lyPal, lyBlk; //ベースレイヤ
-		let lyRadar; //レーダー
+		let lyRadar = null; //レーダー
 		let lcMain; //レイヤコントロール
 		let htObsInfo = null; //観測点の情報(Key:観測点コード)
 		let gjPoints = null;
@@ -143,7 +103,6 @@
 		
 		//カラーコード・最低カテゴリ上限値(月別)・カテゴリのStep
 		const sColors = ["#002080", "#0039E4", "#006CFF", "#5DC1FF", "#DCF5F8", "#FFFFC3", "#FDFA4B", "#FDC700", "#FF6100", "#E41440", "#C80080"];
-		let dMinTs = [-2, -2, 0, 6, 10, 14, 18, 18, 14, 10, 4, 0]; //独自の配色用(月別)
 		let dMinT = -10; //デフォルト(気象庁配色)
 		let dTStep = 5;  //デフォルト(気象庁配色)
 		
