@@ -142,11 +142,19 @@
 		//9 <= zoom では lyTempCrl, lyTempStr, lyWindBarbLを表示
 		map.on('zoomend', LayerSwitchByZScale);
 
+		//▼mapイベント:移動開始→文字(気温)を消す
+		map.on('move', function(){
+			//移動中は文字を消す(処理を軽くするため)
+			if(map.hasLayer(lyTempStr)){map.removeLayer(lyTempStr);}
+		});
+
 		//▼mapイベント:移動終了→中心位置取得→URL変更
 		map.on('moveend', function(){
 			dLon = map.getCenter().lng.toFixed(6);
 			dLat = map.getCenter().lat.toFixed(6);
 			ReplaceURL();
+			
+			LayerSwitchByZScale();
 		});
 		
 	</script>
