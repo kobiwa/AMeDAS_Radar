@@ -79,8 +79,9 @@
 				</form>
 			</div>
 			<div class="menu_subCat">
-				背景図選択
+				背景図選択<br>
 				<label><input name="lyr" type="radio" value="blk" checked>白地図</label>
+				<label><input name="lyr" type="radio" value="shd">陰影起伏図</label>
 				<label><input name="lyr" type="radio" value="pal">淡色地図</label>
 			</div>
 		</div>
@@ -89,7 +90,7 @@
 		<script language="javascript" type="text/javascript">
 		//▼グローバル変数
 		const MaxWind = 35; //上限となる風速(これ以上の矢羽根未整備)
-		let dLon, dLat, dZoom;
+		let dLon=139.75, dLat=35.69, dZoom=9;
 		let lyTempStr = null, lyTempCrl = null, lyWindBarbL = null, lyWindBarbS = null; //気温文字、気温○、矢羽根(大)、矢羽(小)
 		let lyPal, lyBlk; //ベースレイヤ
 		let lyRadar = null; //レーダー
@@ -107,7 +108,6 @@
 		let dTStep = 5;  //デフォルト(気象庁配色)
 		
 		//地図を生成（初期表示の中心座標，ズームレベル，レイヤなどをオプションで設定）
-		GetParams();
 		let map = L.map('leafletmap', {center:[dLat,dLon], zoomControl:false, zoom:dZoom, minZoom:5, maxZoom:16});
 		
 		//ペイン
@@ -121,6 +121,10 @@
 		
 		//タイルレイヤ追加
 		//切り替え可能とするタイルレイヤを生成（タイルURL，ズーム範囲，著作権表示などをオプションで設定）
+		lyShd = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/hillshademap/{z}/{x}/{y}.png', {
+			minZoom:2, maxZoom:16, maxNativeZoom:16, opacity:0.5,
+			attribution: "<a href='http://maps.gsi.go.jp/development/ichiran.html' target='_blank'>地理院タイル</a>"
+			});
 		lyPal = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
 			minZoom:5, maxZoom:18, 
 			attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>地理院タイル</a>"
@@ -134,8 +138,12 @@
 		//スケールコントロールを追加（オプションはフィート単位を非表示）
 		L.control.scale({imperial: false}).addTo(map);
 		
+		//Getパラメータ取得
+		GetParams();
+		
 		//凡例表示
 		SwitchLegendT();
+		
 		
 		//▼mapイベント:ズームレベル変更時の表示制御
 		//zoom < 9  では lyTempCrl, lyWindBarbSを表示

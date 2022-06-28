@@ -1,23 +1,27 @@
 //▼ここから関数集
 //GETパラメータ取得
 function GetParams(){
-	dLat = 35.69;
-	dLon = 139.75;
-	dZoom = 9;
 	let sQuery = window.location.search.replace(/^\?/,'');
 	if(!sQuery) {return;}
 	
 	let sParams = sQuery.split('&');
-	let bFlgT = 0;
+	let bFlgT=0, bFlgP=0;
+	let sMap='NA';
 	for(let i=0; i < sParams.length; i++){
 		let elem = sParams[i].split('=');
 		if(elem.length < 2) {continue;}
 		
-		if(elem[0]=='lat' && !isNaN(elem[1])){dLat=Number(elem[1]);}
-		else if(elem[0]=='lon'&& !isNaN(elem[1])){dLon=Number(elem[1]);}
-		else if(elem[0]=='z'&& !isNaN(elem[1])){dZoom=Number(elem[1]);}
+		if(elem[0]=='lat' && !isNaN(elem[1])){dLat=Number(elem[1]); bFlgP=1; }
+		else if(elem[0]=='lon'&& !isNaN(elem[1])){dLon=Number(elem[1]); bFlgP=1; }
+		else if(elem[0]=='z'&& !isNaN(elem[1])){dZoom=Number(elem[1]);  bFlgP=1; }
 		else if(elem[0]=='t0'&& !isNaN(elem[1])){dMinT=Number(elem[1]); bFlgT=1; }
 		else if(elem[0]=='dt'&& !isNaN(elem[1])){dTStep=Number(elem[1]); bFlgT=1; }
+		else if(elem[0]=='b_map'){ sMap=elem[1]; }
+	}
+	
+	//位置・縮尺設定
+	if(bFlgP){
+		map.setView([dLat, dLon], dZoom);
 	}
 	
 	//気温設定(HTML上のコントロール反映)
@@ -29,6 +33,12 @@ function GetParams(){
 		document.legend_temp.elements[3].value=dTStep;
 		document.legend_temp.elements[2].disabled=false;
 		document.legend_temp.elements[3].disabled=false;
+	}
+	
+	//背景図選択
+	if(sMap == 'blk' || sMap == 'shd' || sMap == 'pal'){
+		$('[name=lyr]').val([sMap]);
+		SelectMap(sMap);
 	}
 }
 
@@ -498,9 +508,11 @@ function LayerSwitchByZScale(){
 function ReplaceURL(){
 	let sQuery = "lat=" + dLat + "&"
 		+ "lon=" + dLon + "&"
-		+ "z=" + dZoom;
+		+ "z=" + dZoom + "&b_map=" + $('[name="lyr"]:checked').val();
+	
+	//気温レンジ
 	if(dMinT != -10 || dTStep != 5){
-		sQuery = sQuery + "&" + "t0=" + dMinT + "&" + "dt=" + dTStep;
+		sQuery = sQuery + "&t0=" + dMinT + "&" + "dt=" + dTStep;
 	}
 	window.history.replaceState('', '', '?' + sQuery);
 }
@@ -508,16 +520,20 @@ function ReplaceURL(){
 //背景図選択
 jQuery(function() {
 	$('[name="lyr"]').on('change', function(){
-		if(!lyBlk || !lyPal){return;}
-		let radio = $(this);
-		let val = radio.val();
-		if(val == "blk"){
-			map.removeLayer(lyPal); map.addLayer(lyBlk);
-		} else{
-			map.removeLayer(lyBlk); map.addLayer(lyPal);
-		}
+		let Name = $(this).val();
+		ReplaceURL();
+		SelectMap(Name);
 	});
 });
+function SelectMap(Name){
+	if(Name == "blk"){
+		map.removeLayer(lyPal); map.removeLayer(lyShd); map.addLayer(lyBlk);
+	} else if (Name == "shd"){
+		map.removeLayer(lyPal); map.addLayer(lyShd); map.removeLayer(lyBlk);
+	} else if (Name == "pal"){
+		map.addLayer(lyPal); map.removeLayer(lyShd); map.removeLayer(lyBlk);
+	}
+}
 
 //現在地へ移動する
 function MoveToCurPos(){
