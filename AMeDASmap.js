@@ -452,7 +452,8 @@ class PointFeature{
 			'気温:'+ sTemp + '<br>' +
 			'降水量:'+ sPrec1h + '<br>' +
 			'風向:'+ sWindDir + '<br>' +
-			'風速:'+ sWindSpd;
+			'風速:'+ sWindSpd + '<br>' +
+			'<a href="https://www.jma.go.jp/bosai/amedas/#amdno=' + Code +'" target=" _blank">表形式(気象庁サイト)</a>';
 		this.geometry={};
 		this.geometry['type']="Point";
 		this.geometry['coordinates']=[];
