@@ -122,15 +122,15 @@ function GetObsInfo(DateTime){
 	if(!htObsInfo){
 		$.getJSON(url)
 			.done(
-				function(data, status, xhr){ htObsInfo = data; GetObsData(data, DateTime); }
+				function(data, status, xhr){ htObsInfo = data; GetObsData(DateTime); }
 			);
 	} else {
-		GetObsData(htObsInfo, DateTime);
+		GetObsData(DateTime);
 	}
 }
 
 //観測値を取得する
-function GetObsData(ObsInfo, DateTime){
+function GetObsData(DateTime){
 	const url='https://www.jma.go.jp/bosai/amedas/data/map/' + DateTime +'.json';
 	$.getJSON(url)
 		.done(function(ObsData, status, xhr){
@@ -143,9 +143,9 @@ function GetObsData(ObsInfo, DateTime){
 
 			//▼GeoJSON作成
 			for (let code in ObsData) {
-				if(code in ObsInfo === false) {continue;} //観測点情報が取れない場合は表示しない
-				let dLon = ObsInfo[code].lon[0]+ObsInfo[code].lon[1]/60;
-				let dLat = ObsInfo[code].lat[0]+ObsInfo[code].lat[1]/60;
+				if(code in htObsInfo === false) {continue;} //観測点情報が取れない場合は表示しない
+				let dLon = htObsInfo[code].lon[0]+htObsInfo[code].lon[1]/60;
+				let dLat = htObsInfo[code].lat[0]+htObsInfo[code].lat[1]/60;
 				let dTemp = 'NA';
 				if('temp' in ObsData[code]){
 					if(ObsData[code].temp[1] == 0){ dTemp = ObsData[code].temp[0]; }
@@ -162,39 +162,55 @@ function GetObsData(ObsInfo, DateTime){
 				}
 				//gjPoints:GeoJsonクラス→少し下で定義している(GeoJSONの書式に準拠)
 				//PointFeatureクラス→こちらも下で定義、GeoJSONの地物の書式に準拠
-				gjPoints.features.push(new PointFeature(dLon, dLat, code, ObsInfo[code].kjName, DateTime, dTemp, dPrec1h, dWindDir, dWindSpd));
+				gjPoints.features.push(new PointFeature(dLon, dLat, code, DateTime, dTemp, dPrec1h, dWindDir, dWindSpd, ObsData));
   			}
   			
   			//▼レイヤ作成
   			//AMeDAS気温(str)
   			lyTempStr = L.geoJSON(gjPoints, {
-  				onEachFeature: CreatePopup,
+  				interactive: false,
   				pointToLayer: function(feature, latlng){
   					if(!isNaN(feature.properties.Temp)){
   						let sCls = Temp2Cls(feature.properties.Temp);
   						let sTemp = feature.properties.Temp.toFixed(1);
-  						return L.marker(latlng, {icon:L.divIcon({html:sTemp, className:sCls, iconSize:[50,16], iconAnchor:[25,-5], zIndexOffset:2000})});
+  						return L.marker(latlng, {interactive:false, icon:L.divIcon({html:sTemp, className:sCls, iconSize:[50,16], iconAnchor:[25,-5], zIndexOffset:2000})});
   					}
   				}
   			});
-
+			
   			//AMeDAS気温(Cercle)
   			lyTempCrl = L.geoJSON(gjPoints, {
-  				onEachFeature: CreatePopup,
+  				interactive: false,
   				pointToLayer: function(feature, latlng){
   					if(!isNaN(feature.properties.Temp)){
   						let dT = feature.properties.Temp;
   						return L.circleMarker(latlng, {
-  							radius:4, fillColor:Temp2Color(dT), fillOpacity: 1, color:"#000000", weight:0.5, pane:"PaneCircle",
+  							interactive:false, radius:4, fillColor:Temp2Color(dT), fillOpacity:1, color:"#000000", weight:0.5, pane:"PaneCircle",
+  							attribution: "<a href='http://www.jma.go.jp/'>AMeDAS & 降水ナウキャスト:気象庁</a>" 
+  						});
+  					} else {
+  						return L.circleMarker(latlng, {
+  							interactive:false, radius:2, fillColor:"#404040", fillOpacity:1, color:"#000000", weight:0.5, pane:"PaneCircle",
   							attribution: "<a href='http://www.jma.go.jp/'>AMeDAS & 降水ナウキャスト:気象庁</a>" 
   						});
   					}
   				}
   			});
 
+  			//AMeDAS観測点…ポップアップ表示用
+  			lyObsPos = L.geoJSON(gjPoints, {
+  				pointToLayer: function(feature, latlng){
+  					return L.circleMarker(latlng, {
+  						radius:20, fillColor:"#000000", fillOpacity:0.0, color:"#000000", opacity:0.0,
+  					});
+  				}
+  			});
+  			lyObsPos.bindPopup(function(layer){DrawGraph(layer);});
+
+
   			//AMeDAS風向風速(矢羽大)
   			lyWindBarbL = L.geoJSON(gjPoints, {
-  				onEachFeature: CreatePopup,
+  				interactive: false,
   				pointToLayer: function(feature, latlng){
   					if(!isNaN(feature.properties.WindSpd) && !isNaN(feature.properties.WindDir)){
   						let iSpd = Math.round(feature.properties.WindSpd);
@@ -207,14 +223,14 @@ function GetObsData(ObsInfo, DateTime){
   							popupAnchor: [0, 0],
   						});
   						let dAng = 22.5 * feature.properties.WindDir;
-  						return L.marker(latlng, {icon: ico, rotationAngle: dAng});
+  						return L.marker(latlng, {interactive:false, icon:ico, rotationAngle: dAng});
   					}
   				}
   			});
 			
   			//AMeDAS風向風速(矢羽小)
   			lyWindBarbS = L.geoJSON(gjPoints, {
-  				onEachFeature: CreatePopup,
+  				interactive: false,
   				pointToLayer: function(feature, latlng){
   					if(!isNaN(feature.properties.WindSpd) && !isNaN(feature.properties.WindDir)){
   						let iSpd = Math.round(feature.properties.WindSpd);
@@ -227,13 +243,12 @@ function GetObsData(ObsInfo, DateTime){
   							popupAnchor: [0, 0],
   						});
   						let dAng = 22.5 * feature.properties.WindDir;
-  						return L.marker(latlng, {icon:ico, rotationAngle:dAng});
+  						return L.marker(latlng, {interactive:false, icon:ico, rotationAngle:dAng});
   					}
   				}
   			});
-  			
-  			
   			map.addLayer(lyTempCrl);
+  			map.addLayer(lyObsPos);
   			LayerSwitchByZScale();
 		});
 	//レーダーの表示制御
@@ -427,7 +442,7 @@ class GeoJson{
 	}
 }
 class PointFeature{
-	constructor(x, y, Code, Name, DateTime, Temp, Prec1h, WindDir, WindSpd){
+	constructor(x, y, Code, DateTime, Temp, Prec1h, WindDir, WindSpd, ObsData){
 		let sTemp=Temp;
 		if(!isNaN(Temp)){sTemp=Temp+'℃';}
 		let sPrec1h=Prec1h;
@@ -440,25 +455,23 @@ class PointFeature{
 		this.type="Feature";
 		this.properties={};
 		this.properties['Code']=Code;
-		this.properties['Name']=Name;
+		this.properties['Name']=htObsInfo[Code].kjName;
+		this.properties['NameKana']=htObsInfo[Code].knName;
+		this.properties['Altitude']=htObsInfo[Code].alt;
 		this.properties['TempFlg']=0;
 		this.properties['Temp']=Temp;
 		this.properties['Prec1h']=Prec1h;
 		this.properties['WindDir']=WindDir;
 		this.properties['WindSpd']=WindSpd;
-		this.properties['Caption']= 
-			Name +'<br>'+
-			DateTime2Fmtd(DateTime) +'<br>'+
-			'気温:'+ sTemp + '<br>' +
-			'降水量:'+ sPrec1h + '<br>' +
-			'風向:'+ sWindDir + '<br>' +
-			'風速:'+ sWindSpd + '<br>' +
-			'<a href="https://www.jma.go.jp/bosai/amedas/#amdno=' + Code +'" target=" _blank">表形式(気象庁サイト)</a>';
 		this.geometry={};
 		this.geometry['type']="Point";
 		this.geometry['coordinates']=[];
 		this.geometry['coordinates'][0]=x;
 		this.geometry['coordinates'][1]=y;
+		
+		//主要以外の観測点情報
+		this.ObsInfo=htObsInfo[Code];
+		this.ObsData=ObsData[Code];
 	}
 }
 
@@ -567,4 +580,130 @@ function MoveToCurPos(){
 	
 	//コマンド実行
 	navigator.geolocation.getCurrentPosition(success, fail, opts);
+}
+
+//初期表示のPopup
+function IndicatePopupNotice(){
+	if( !localStorage.getItem('PopupNotice') ) {
+	    localStorage.setItem('PopupNotice', 'on');
+	    let ppBg = document.getElementById('Popup_Bg');
+	    let ppNt = document.getElementById('PopupNotice');
+	    ppBg.classList.add('js_active');
+	    ppNt.classList.add('js_active');
+	    ppBg.onclick = function() {
+	        ppBg.classList.remove('js_active');
+	        ppNt.classList.remove('js_active');
+	    }
+	}
+}
+
+//PopUpにグラフを表示する
+function DrawGraph(layer){
+	const i3H = 10800000; //3時間のミリ秒(3*3600*1000)
+	const iN = 8; //3時間データをどれだけ取得するか
+	
+	let pps = layer.feature.properties;
+	
+	//リストボックスで選択された値(日付:yyyyMMddHHmmSS)
+	let dtNewest = Fmtd2DateTime(document.getElementById("lsDateTime").value);
+	
+	//データ初期化
+	for(let elem in htData){ htData[elem].values = []; }
+	
+	//データを取得する
+	let sLabs = [];
+	$.ajaxSetup({async: false}); //jQueryを同期モードへ
+	for(let i = iN - 1; 0 <= i; i--){
+		let dt3H = new Date(Math.floor((dtNewest - i * i3H) / i3H) * i3H);
+		let sURL = "https://www.jma.go.jp/bosai/amedas/data/point/"+ pps.Code +"/" + formatDate(dt3H, "yyyyMMdd_HH") +".json";
+		$.getJSON(sURL, function(data, status, xhr){
+			for(let key in data){
+				sLabs.push(key.substring(4,6)+'/'+key.substring(6,8)+' '+key.substring(8,10)+':'+key.substring(10,12));
+				for(let elem in layer.feature.ObsData){
+					if(htData[elem]){
+						let value = null;
+						if(data[key][elem]){ if(data[key][elem][1] == 0){value = data[key][elem][0]; }} //AQC=0のみ取得
+						htData[elem].values.push(value);
+					}
+				}
+			}
+		});
+	}
+	$.ajaxSetup({async: true});
+	
+	//ポップアップ生成
+	let elBg = document.getElementById('Popup_Bg');
+	let elGp = document.getElementById('PopupGraph');
+	let elTt = document.getElementById('PopupGraph_title');
+	let elCt = document.getElementById('PopupGraph_content');
+	let elCtTx = document.getElementById('PopupGraph_content_text');
+	elTt.innerText=pps.Name+' ('+pps.NameKana+' 標高:'+pps.Altitude+'m)';
+	elCtTx.innerHTML=formatDate(dtNewest, "yyyy/MM/dd HH:mm")+'<br>\n';
+	
+	
+	//ポップアップの幅制御
+	const ppWidth = 600;
+	if(ppWidth <= elBg.clientWidth) { elGp.style.width = ppWidth+"px"; }
+	else { elGp.style.width = elBg.clientWidth+"px"; }
+	
+	//データ生成
+	for(let elem in htData){
+		let cnt = document.getElementById("cnt_" + elem);
+		if(htData[elem].values.length == 0){
+			cnt.style.display="none";
+		} else {
+			cnt.style.display="block";
+			let cvs = document.getElementById("cvs_" + elem).getContext("2d");
+			let data = CreateDataForChartJS(sLabs, htData[elem]);
+			
+			//凡例(非表示)・軸ラベル(表示)
+			data.options={};
+			data.options.legend={display:false,};
+			data.options.scales={};
+			data.options.scales.yAxes=[];
+			data.options.scales.yAxes[0]={scaleLabel:{labelString:htData[elem].name}};
+			
+			//降水量の処理: 負の値がない(雨が降らないときに不自然になるのを回避)
+			if(elem == 'precipitation10m' && Math.max.apply(null, htData[elem].values) < 1.0){
+				data.options.scales.yAxes[0].ticks={min:0, max:1};
+			}
+			
+			if(htCharts[elem]) {htCharts[elem].destroy();}
+			htCharts[elem] = new Chart(cvs, data);
+			
+			//ポップアップ冒頭の選択時刻の気象情報
+			elCtTx.innerHTML = elCtTx.innerHTML + htData[elem].name +':'+ layer.feature.ObsData[elem][0] + '[' + htData[elem].unit + '] ';
+		}
+	}
+	
+	//ポップアップの高さ制御
+	const diff_margin=50;
+	let diff_bp = elBg.clientHeight - elGp.clientHeight;
+	let diff_pc = elGp.clientHeight - elCt.clientHeight;
+	if(elBg.clientHeight-diff_margin < elGp.clientHeight){
+		elGp.style.height = (elBg.clientHeight-diff_margin)+"px";
+		elCt.style.height = (elBg.clientHeight-diff_margin-diff_pc)+"px";
+		let diff = elCt.clientHeight - (elBg.clientHeight-diff_margin-diff_pc); //スクロールバーのボタン分がずれるのを回避
+		elCt.style.height = (elBg.clientHeight-diff_margin-diff_pc-diff)+"px";
+	}
+	elBg.classList.add('js_active');
+	elGp.classList.add('js_active');
+	elBg.onclick = function() { //ポップアップを消すための処理
+		elBg.classList.remove('js_active');
+		elGp.classList.remove('js_active');
+	}
+	return ;
+}
+
+//Chart.jsに載せるためのデータを作る
+function CreateDataForChartJS(labels, values){
+	let Data = {
+		type: values.type,
+		data: {
+			labels: labels,
+			datasets: [{label:values.label, data:values.values, borderColor:"rgba(54,164,235,0.8)"},]
+		},
+		options: {line: {tension: 0}}
+	};
+	return(Data);
 }

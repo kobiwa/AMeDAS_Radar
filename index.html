@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -13,30 +12,18 @@
 	<!-- 矢羽根の回転に使用 Copyright (c) 2015 Benjamin Becquet https://github.com/bbecquet/Leaflet.RotatedMarker/blob/master/LICENSE -->
 	<script src="https://bbecquet.github.io/Leaflet.RotatedMarker/leaflet.rotatedMarker.js"></script>
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
-	
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.3.0/Chart.bundle.min.js" type="text/javascript"></script>
+
 	<!-- 地図表示のコード -->
-	<script src="./AMeDASmap.js"></script>
-	<link rel="stylesheet" href="./AMeDASmap.css" />
+	<script src="./AMeDASmap.js?date=20230113"></script>
+	<link rel="stylesheet" href="./AMeDASmap.css?date=20230113" />
 </head>
 <body>
-	<!-- 念のための表示はじまり -->
-	<!-- 参考: https://migi.me/javascript/popup-modal-window-only-once/ -->
-	<script type="text/javascript">
-	    window.addEventListener('load', function() {
-	        if( !localStorage.getItem('disp_popup') ) {
-	            localStorage.setItem('disp_popup', 'on');
-	            var popup = document.getElementsByClassName('bg_onetime_popup');
-	            popup[0].classList.add('js_active');
-	            popup[0].onclick = function() {
-	                popup[0].classList.remove('js_active');
-	            }
-	        }
-	    }, false);
-	</script>
-	<div class="bg_onetime_popup">
-	    <div class="onetime_popup">
-	        <p class="onetime_popup_title">このページについて(免責事項)</p>
-	        <div class="onetime_popup_content">
+	<div id="Popup_Bg">
+		<!-- 初期表示のPopup -->
+	    <div id="PopupNotice">
+	        <p id="PopupNotice_title">このページについて(免責事項)</p>
+	        <div id="PopupNotice_content">
 	        	このウインドウを閉じた時点、下記の全てに同意したものとみなします。
 	        	<ul style="list-style-type:disc">
 	        		<li>このページの作者は、このサイトから入手された情報により発生した、あらゆる損害に関して一切の責任を負いません。</li>
@@ -48,8 +35,35 @@
 	        	</ul>
 	        </div>
 	    </div>
+		<!-- グラフ表示のPopup -->
+	    <div id="PopupGraph">
+	        <p id="PopupGraph_title">地点名</p>
+	        <div id="PopupGraph_content">
+	        	<div id="PopupGraph_content_text"></div>
+	        	
+				<!-- ★コンテナ・キャンバスのIDは気象庁JSONの要素名に合わせる★-->
+				<!-- 気温グラフ -->
+				<div id="cnt_temp" style="width:100%"><div class="cnt_legend">気温[℃]</div><canvas id="cvs_temp"></canvas></div>
+				
+				<!-- 湿度グラフ -->
+				<div id="cnt_humidity" style="width:100%"><div class="cnt_legend">相対湿度[％]</div><canvas id="cvs_humidity"></canvas></div>
+				
+				<!-- 風速グラフ -->
+				<div id="cnt_wind" style="width:100%"><div class="cnt_legend">風速[m/s]</div><canvas id="cvs_wind"></canvas></div>
+				
+				<!-- 気圧グラフ -->
+				<div id="cnt_pressure" style="width:100%"><div class="cnt_legend">気圧[hPa]</div><canvas id="cvs_pressure"></canvas></div>
+				
+				<!-- 降水量グラフ -->
+				<div id="cnt_precipitation10m" style="width:100%"><div class="cnt_legend">降水量(10分間)[mm/10min]</div><canvas id="cvs_precipitation10m"></canvas></div>
+	        </div>
+	    </div>
 	</div>
-	<!-- 念のための表示おわり -->
+	<!-- 初期表示のPopup -->
+	<script type="text/javascript">
+	    window.addEventListener('load', IndicatePopupNotice(), false);
+	</script>
+	
 	
 	<!-- メニュー -->
 	<div id="menu">
@@ -94,31 +108,41 @@
 		<script language="javascript" type="text/javascript">
 		//▼グローバル変数
 		const MaxWind = 35; //上限となる風速(これ以上の矢羽根未整備)
-		let dLon=139.75, dLat=35.69, dZoom=9;
-		let lyTempStr = null, lyTempCrl = null, lyWindBarbL = null, lyWindBarbS = null; //気温文字、気温○、矢羽根(大)、矢羽(小)
-		let lyPal, lyBlk; //ベースレイヤ
-		let lyRadar = null; //レーダー
-		let lcMain; //レイヤコントロール
-		let htObsInfo = null; //観測点の情報(Key:観測点コード)
-		let gjPoints = null;
-		let ctLegT = null;
-		let arRadarTs = null; //レーダー画像の時刻(JST)
-		let elSlider = document.getElementById('sldRadar'); //透過度
+		var dLon=139.75, dLat=35.69, dZoom=9;
+		var lyTempStr = null, lyTempCrl = null, lyObsPos = null, lyWindBarbL = null, lyWindBarbS = null; //気温文字、気温○、観測点透明○、矢羽根(大)、矢羽(小)
+		var lyPal, lyBlk, lyShd; //ベースレイヤ
+		var lyRadar = null; //レーダー
+		var lcMain; //レイヤコントロール
+		var htObsInfo = null; //観測点の情報(Key:観測点コード)
+		var gjPoints = null;
+		var ctLegT = null;
+		var arRadarTs = null; //レーダー画像の時刻(JST)
+		var elSlider = document.getElementById('sldRadar'); //透過度
 		elSlider.addEventListener('change', ChangeRadarOpacity);
 		
 		//カラーコード・最低カテゴリ上限値(月別)・カテゴリのStep
 		const sColors = ["#002080", "#0039E4", "#006CFF", "#5DC1FF", "#DCF5F8", "#FFFFC3", "#FDFA4B", "#FDC700", "#FF6100", "#E41440", "#C80080"];
-		let dMinT = -10; //デフォルト(気象庁配色)
-		let dTStep = 5;  //デフォルト(気象庁配色)
+		var dMinT = -10; //デフォルト(気象庁配色)
+		var dTStep = 5;  //デフォルト(気象庁配色)
 		
 		//地図を生成（初期表示の中心座標，ズームレベル，レイヤなどをオプションで設定）
 		let map = L.map('leafletmap', {center:[dLat,dLon], zoomControl:false, zoom:dZoom, minZoom:5, maxZoom:16});
 		
 		//ペイン
-		let pnCrl = map.createPane("PaneCircle");
-		let pnRdr = map.createPane("PaneRadar");
+		var pnCrl = map.createPane("PaneCircle");
+		var pnRdr = map.createPane("PaneRadar");
 		pnRdr.style.mixBlendMode = "multiply"; //乗算合成
 		pnCrl.style.zIndex = 640;
+		
+		//グラフ(ポップアップ表示、Key:気象庁JSONの要素名)
+		var htCharts={};
+		let htData = {
+			precipitation10m:{name:"10分間降水量", unit:"mm/10min", type:"bar", values:[]},
+			temp:{name:"気温", unit:"℃", type:"line" ,values:[]},
+			humidity:{name:"相対湿度", unit:"%", type:"line" ,values:[]},
+			wind:{name:"風速", unit:"m/s", type:"line" ,values:[]},
+			pressure:{name:"気圧", unit:"hPa", type:"line" ,values:[]},
+		};
 		
 		//▼ここから表示処理呼び出し
 		GetTimes();
