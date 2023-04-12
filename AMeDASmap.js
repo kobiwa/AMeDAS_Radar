@@ -160,6 +160,13 @@ function GetObsData(DateTime){
 					if(ObsData[code].wind[1] == 0){ dWindSpd = ObsData[code].wind[0]; }
 					if(ObsData[code].windDirection[1] == 0){ dWindDir = ObsData[code].windDirection[0]; }
 				}
+				
+				//富士山の例外処理(毎正時だけ相対湿度と気圧が観測されている)
+				if(code == "50066"){
+					if(ObsData["50066"].humidity == null){ ObsData["50066"].humidity=new Array(null, null);	}
+					if(ObsData["50066"].pressure == null){ ObsData["50066"].pressure=new Array(null, null);	}
+				}
+				
 				//gjPoints:GeoJsonクラス→少し下で定義している(GeoJSONの書式に準拠)
 				//PointFeatureクラス→こちらも下で定義、GeoJSONの地物の書式に準拠
 				gjPoints.features.push(new PointFeature(dLon, dLat, code, DateTime, dTemp, dPrec1h, dWindDir, dWindSpd, ObsData));
@@ -701,7 +708,7 @@ function CreateDataForChartJS(labels, values){
 		type: values.type,
 		data: {
 			labels: labels,
-			datasets: [{label:values.label, data:values.values, borderColor:"rgba(54,164,235,0.8)"},]
+			datasets: [{label:values.label, data:values.values, borderColor:"rgba(0,0,255,1.0)", spanGaps:true, fill:false, borderWidth:1.5, radius:1},]
 		},
 		options: {line: {tension: 0}}
 	};
