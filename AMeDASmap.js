@@ -212,8 +212,8 @@ function GetObsData(DateTime){
   					});
   				}
   			});
-  			lyObsPos.bindPopup(function(layer){DrawGraph(layer);});
-
+  			//クリックイベント(ポップアップ用)
+  			lyObsPos.on("click", function(e){DrawGraph(e)});
 
   			//AMeDAS風向風速(矢羽大)
   			lyWindBarbL = L.geoJSON(gjPoints, {
@@ -321,13 +321,6 @@ function ChangeRadarOpacity(){
 		let dOpacity = 1 - Number(elSlider.value) /100;
 		lyRadar.setOpacity(dOpacity);
 	}
-}
-
-//ポップアップ
-function CreatePopup(feature, layer) {
-    if (feature.properties && feature.properties.Caption) {
-		layer.bindPopup(feature.properties.Caption);
-    }
 }
 
 //▼凡例
@@ -460,6 +453,7 @@ class PointFeature{
 		if(!isNaN(WindSpd)){sWindSpd=WindSpd+'m/s';}
 		
 		this.type="Feature";
+		this.id=Code;
 		this.properties={};
 		this.properties['Code']=Code;
 		this.properties['Name']=htObsInfo[Code].kjName;
@@ -472,43 +466,12 @@ class PointFeature{
 		this.properties['WindSpd']=WindSpd;
 		this.geometry={};
 		this.geometry['type']="Point";
-		this.geometry['coordinates']=[];
-		this.geometry['coordinates'][0]=x;
-		this.geometry['coordinates'][1]=y;
+		this.geometry['coordinates']=[x, y];
 		
 		//主要以外の観測点情報
 		this.ObsInfo=htObsInfo[Code];
 		this.ObsData=ObsData[Code];
 	}
-}
-
-//▼日付処理関係
-//Dateオブジェクトから指定書式の文字列を返す
-//https://zukucode.com/2017/04/javascript-date-format.html
-function formatDate (date, format) {
-	format = format.replace(/yyyy/g, date.getFullYear());
-	format = format.replace(/MM/g, ('0' + (date.getMonth() + 1)).slice(-2));
-	format = format.replace(/dd/g, ('0' + date.getDate()).slice(-2));
-	format = format.replace(/HH/g, ('0' + date.getHours()).slice(-2));
-	format = format.replace(/mm/g, ('0' + date.getMinutes()).slice(-2));
-	format = format.replace(/ss/g, ('0' + date.getSeconds()).slice(-2));
-	format = format.replace(/SSS/g, ('00' + date.getMilliseconds()).slice(-3));
-	return format;
-};
-//yyyyMMddHHmmSS→ yyyy/MM/dd HH:mm
-function DateTime2Fmtd(DateTime){
-	return 	DateTime.substring(0,4)+'/'+DateTime.substring(4,6)+'/'+DateTime.substring(6,8)+' '+
-		DateTime.substring(8,10)+':'+DateTime.substring(10,12);
-}
-
-//yyyyMMddHHmmSS→Date
-function Fmtd2DateTime(FormattedString){
-	let iYr = Number(FormattedString.substring(0,4));
-	let iMt = Number(FormattedString.substring(4,6))-1;
-	let iDy = Number(FormattedString.substring(6,8));
-	let iHr = Number(FormattedString.substring(8,10));
-	let iMn = Number(FormattedString.substring(10,12));
-	return new Date(iYr, iMt, iDy, iHr, iMn);
 }
 
 //スケールによる表示制御
@@ -605,8 +568,16 @@ function IndicatePopupNotice(){
 }
 
 //PopUpにグラフを表示する
-function DrawGraph(layer){
-	const i3H = 10800000; //3時間のミリ秒(3*3600*1000)
+function DrawGraph(e){
+	//実処理は別スレッドへ
+	setTimeout(DrawGraph_2, 0, e.layer);
+	
+	//「くるくる」を表示
+	IndicateLoading();
+}
+
+//PopUpにグラフを表示する(実処理)
+function DrawGraph_2(layer){
 	const iN = 8; //3時間データをどれだけ取得するか
 	
 	let pps = layer.feature.properties;
@@ -614,29 +585,56 @@ function DrawGraph(layer){
 	//リストボックスで選択された値(日付:yyyyMMddHHmmSS)
 	let dtNewest = Fmtd2DateTime(document.getElementById("lsDateTime").value);
 	
-	//データ初期化
-	for(let elem in htData){ htData[elem].values = []; }
+	//グラフのラベル: 時刻
+	let sLabs = Array(144); //144 = 24hr×6
+	let dtDat = new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate());
+	for(let i = 0; i < sLabs.length; i++){ sLabs[i] = formatDate(dtDat, "HH:mm"); dtDat.setMinutes(dtDat.getMinutes() + 10); }
+	
+	//データ初期化:データそのものはグローバル
+	for(let elem in htData){ 
+		for(let iD = 0; iD < htData[elem].values.length; iD++){ 
+			htData[elem].values[iD] = Array(sLabs.length);
+			htData[elem].N = 0;
+			for(let i = 0; i < sLabs.length; i++){ htData[elem].values[iD][i] = null; }
+		}
+	}
 	
 	//データを取得する
-	let sLabs = [];
 	$.ajaxSetup({async: false}); //jQueryを同期モードへ
-	for(let i = iN - 1; 0 <= i; i--){
-		let dt3H = new Date(Math.floor((dtNewest - i * i3H) / i3H) * i3H);
-		let sURL = "https://www.jma.go.jp/bosai/amedas/data/point/"+ pps.Code +"/" + formatDate(dt3H, "yyyyMMdd_HH") +".json";
-		$.getJSON(sURL, function(data, status, xhr){
-			for(let key in data){
-				sLabs.push(key.substring(4,6)+'/'+key.substring(6,8)+' '+key.substring(8,10)+':'+key.substring(10,12));
-				for(let elem in layer.feature.ObsData){
-					if(htData[elem]){
-						let value = null;
-						if(data[key][elem]){ if(data[key][elem][1] == 0){value = data[key][elem][0]; }} //AQC=0のみ取得
-						htData[elem].values.push(value);
+	for(let iD = 0; iD < 3; iD++){ //0:当日、1:前日、2:前々日
+		for(let iH = 0; iH < 24; iH += 3){
+			dtDat = new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate() - iD);
+			dtDat.setHours(dtDat.getHours() + iH);
+			if(dtNewest < dtDat){ break; }
+			let sURL = "https://www.jma.go.jp/bosai/amedas/data/point/"+ pps.Code +"/" + formatDate(dtDat, "yyyyMMdd_HH") +".json";
+			$.getJSON(sURL, function(data, status, xhr){
+				dt0 = new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate() - iD);
+				for(let key in data){
+					let idx = (Fmtd2DateTime(key).getTime() - dt0.getTime())/(10*60*1000);
+					for(let elem in layer.feature.ObsData){
+						if(htData[elem]){
+							if(data[key][elem]){ 
+								if(data[key][elem][1] == 0){ htData[elem].values[iD][idx] = data[key][elem][0]; htData[elem].N++; }}
+							}
+						}
 					}
 				}
-			}
-		});
+			); //$.getJSON
+		}
 	}
 	$.ajaxSetup({async: true});
+	
+	//日付凡例
+	for(let iD = 0; iD < 3; iD++){
+		dtDat = new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate() - iD);
+		let elLegDay = document.getElementsByClassName('Popup_Legend_Day' + iD);
+		for(let i = 0; i < elLegDay.length; i++){
+			elLegDay[i].innerHTML = formatDate(dtDat, "yyyy/MM/dd");
+		}
+	}
+	
+	//デフォルトのポップアップを閉じる
+	layer.closePopup();
 	
 	//ポップアップ生成
 	let elBg = document.getElementById('Popup_Bg');
@@ -647,7 +645,6 @@ function DrawGraph(layer){
 	elTt.innerText=pps.Name+' ('+pps.NameKana+' 標高:'+pps.Altitude+'m)';
 	elCtTx.innerHTML=formatDate(dtNewest, "yyyy/MM/dd HH:mm")+'<br>\n';
 	
-	
 	//ポップアップの幅制御
 	const ppWidth = 600;
 	if(ppWidth <= elBg.clientWidth) { elGp.style.width = ppWidth+"px"; }
@@ -656,7 +653,7 @@ function DrawGraph(layer){
 	//データ生成
 	for(let elem in htData){
 		let cnt = document.getElementById("cnt_" + elem);
-		if(htData[elem].values.length == 0){
+		if(htData[elem].N == 0){
 			cnt.style.display="none";
 		} else {
 			cnt.style.display="block";
@@ -669,9 +666,11 @@ function DrawGraph(layer){
 			data.options.scales={};
 			data.options.scales.yAxes=[];
 			data.options.scales.yAxes[0]={scaleLabel:{labelString:htData[elem].name}};
+			data.options.scales.xAxes=[];
+			data.options.scales.xAxes[0]={ticks:{maxTicksLimit:13}};
 			
 			//降水量の処理: 負の値がない(雨が降らないときに不自然になるのを回避)
-			if(elem == 'precipitation10m' && Math.max.apply(null, htData[elem].values) < 1.0){
+			if(elem == 'precipitation10m' && Math.max.apply(null, htData[elem].values.flat(2)) < 1.0){
 				data.options.scales.yAxes[0].ticks={min:0, max:1};
 			}
 			
@@ -699,6 +698,8 @@ function DrawGraph(layer){
 		elBg.classList.remove('js_active');
 		elGp.classList.remove('js_active');
 	}
+	//処理中画面除去
+	RemoveLoading();
 	return ;
 }
 
@@ -708,9 +709,60 @@ function CreateDataForChartJS(labels, values){
 		type: values.type,
 		data: {
 			labels: labels,
-			datasets: [{label:values.label, data:values.values, borderColor:"rgba(0,0,255,1.0)", spanGaps:true, fill:false, borderWidth:1.5, radius:1},]
+			datasets: [
+				{label:values.name, data:values.values[0], borderColor:"#00F", spanGaps:true, fill:false, borderWidth:1.5, radius:1, lineTension:0},
+				{label:values.name, data:values.values[1], borderColor:"#66F", spanGaps:true, fill:false, borderWidth:1.0, radius:1, lineTension:0},
+				{label:values.name, data:values.values[2], borderColor:"#AAF", spanGaps:true, fill:false, borderWidth:0.8, radius:1, lineTension:0},
+			]
 		},
-		options: {line: {tension: 0}}
 	};
 	return(Data);
+}
+
+//loading画面 →https://se-log.blogspot.com/2019/11/javascript-screenlook.html
+function IndicateLoading(){
+	let elSpan = document.createElement("span");
+	elSpan.id = "loading_circle";
+	
+	let elDiv = document.createElement("div");
+	elDiv.id = "loading";
+	
+	let elBody = document.getElementsByTagName("body").item(0);
+	
+	//exDiv・elSpan(くるくる)のスタイルはCSSに記述
+	elDiv.appendChild(elSpan);
+	elBody.appendChild(elDiv);
+}
+function RemoveLoading(elLoading){
+	let elDiv = document.getElementById("loading");
+	elDiv.parentNode.removeChild(elDiv);
+}
+
+//▼日付処理関係
+//Dateオブジェクトから指定書式の文字列を返す
+//https://zukucode.com/2017/04/javascript-date-format.html
+function formatDate (date, format) {
+	format = format.replace(/yyyy/g, date.getFullYear());
+	format = format.replace(/MM/g, ('0' + (date.getMonth() + 1)).slice(-2));
+	format = format.replace(/dd/g, ('0' + date.getDate()).slice(-2));
+	format = format.replace(/HH/g, ('0' + date.getHours()).slice(-2));
+	format = format.replace(/mm/g, ('0' + date.getMinutes()).slice(-2));
+	format = format.replace(/ss/g, ('0' + date.getSeconds()).slice(-2));
+	format = format.replace(/SSS/g, ('00' + date.getMilliseconds()).slice(-3));
+	return format;
+};
+//yyyyMMddHHmmSS→ yyyy/MM/dd HH:mm
+function DateTime2Fmtd(DateTime){
+	return 	DateTime.substring(0,4)+'/'+DateTime.substring(4,6)+'/'+DateTime.substring(6,8)+' '+
+		DateTime.substring(8,10)+':'+DateTime.substring(10,12);
+}
+
+//yyyyMMddHHmmSS→Date
+function Fmtd2DateTime(FormattedString){
+	let iYr = Number(FormattedString.substring(0,4));
+	let iMt = Number(FormattedString.substring(4,6))-1;
+	let iDy = Number(FormattedString.substring(6,8));
+	let iHr = Number(FormattedString.substring(8,10));
+	let iMn = Number(FormattedString.substring(10,12));
+	return new Date(iYr, iMt, iDy, iHr, iMn);
 }
