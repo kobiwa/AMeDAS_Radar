@@ -15,8 +15,8 @@
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.3.0/Chart.bundle.min.js" type="text/javascript"></script>
 
 	<!-- 地図表示のコード -->
-	<script src="./AMeDASmap.js?date=202300420"></script>
-	<link rel="stylesheet" href="./AMeDASmap.css?date=20230420"/>
+	<script src="./AMeDASmap.js?date=202300609"></script>
+	<link rel="stylesheet" href="./AMeDASmap.css?date=20230609"/>
 </head>
 <body>
 	<div id="Popup_Bg">
@@ -144,7 +144,7 @@
 		//▼グローバル変数
 		const MaxWind = 35; //上限となる風速(これ以上の矢羽根未整備)
 		var dLon=139.75, dLat=35.69, dZoom=9;
-		var lyTempStr = null, lyTempCrl = null, lyObsPos = null, lyWindBarbL = null, lyWindBarbS = null; //気温文字、気温○、観測点透明○、矢羽根(大)、矢羽(小)
+		var lyTempStr = null, lyTempCrl = null, lyObsPos = null, lyObsName = null, lyWindBarbL = null, lyWindBarbS = null; //気温文字、気温○、観測点透明○、観測点名、矢羽根(大)、矢羽(小)
 		var lyPal, lyBlk, lyShd; //ベースレイヤ
 		var lyRadar = null; //レーダー
 		var lcMain; //レイヤコントロール
@@ -217,7 +217,8 @@
 		//▼mapイベント:移動開始→文字(気温)を消す
 		map.on('move', function(){
 			//移動中は文字を消す(処理を軽くするため)
-			if(map.hasLayer(lyTempStr)){map.removeLayer(lyTempStr);}
+			if(map.hasLayer(lyTempStr)){map.removeLayer(lyTempStr);} //気温
+			if(map.hasLayer(lyObsName)){map.removeLayer(lyObsName);} //観測点名
 		});
 
 		//▼mapイベント:移動終了→中心位置取得→URL変更

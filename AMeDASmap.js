@@ -203,7 +203,7 @@ function GetObsData(DateTime){
   					}
   				}
   			});
-
+			
   			//AMeDAS観測点…ポップアップ表示用
   			lyObsPos = L.geoJSON(gjPoints, {
   				pointToLayer: function(feature, latlng){
@@ -212,9 +212,16 @@ function GetObsData(DateTime){
   					});
   				}
   			});
-  			//クリックイベント(ポップアップ用)
-  			lyObsPos.on("click", function(e){DrawGraph(e)});
-
+  			lyObsPos.on("click", function(e){DrawGraph(e)}); //クリックイベント(ポップアップ用)
+  			
+  			//AMeDAS観測点名称
+  			lyObsName = L.geoJSON(gjPoints, {
+  				interactive: false,
+  				pointToLayer: function(feature, latlng){
+  					return L.marker(latlng, {interactive:false, icon:L.divIcon({html:feature.properties.Name, className:"StrPos", iconSize:[80,17], iconAnchor:[40,16], zIndexOffset:2000})});
+  				}
+  			});
+			
   			//AMeDAS風向風速(矢羽大)
   			lyWindBarbL = L.geoJSON(gjPoints, {
   				interactive: false,
@@ -477,6 +484,8 @@ class PointFeature{
 //スケールによる表示制御
 function LayerSwitchByZScale(){
 	dZoom = map.getZoom();
+	
+	//気温表示
 	if(dZoom < 9){
 		if(map.hasLayer(lyTempStr)){map.removeLayer(lyTempStr);}
 		if(map.hasLayer(lyWindBarbL)){map.removeLayer(lyWindBarbL);}
@@ -485,6 +494,13 @@ function LayerSwitchByZScale(){
 		if(map.hasLayer(lyWindBarbS)){map.removeLayer(lyWindBarbS);}
 		if(lyWindBarbL){map.addLayer(lyWindBarbL);}
 		if(lyTempStr) {map.addLayer(lyTempStr);}
+	}
+	
+	//観測点名表示
+	if(dZoom < 10){
+		if(map.hasLayer(lyObsName)){map.removeLayer(lyObsName);}
+	} else {
+		if(lyObsName) {map.addLayer(lyObsName);}
 	}
 }
 

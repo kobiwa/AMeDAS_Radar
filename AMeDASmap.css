@@ -12,6 +12,7 @@ h1 {margin:0px; padding:0px; border:0px; font-size:18px; font-weight:600; line-h
 #btnOpacity{font-size:14px; color: #FFF; background-color: #08F; border-radius:2px; text-decoration:none; padding:1px;}
 .txtTemp{font-size:16pt; transform:scale(0.8); text-align:right; width:30px; background:#DEF; }
 
+.StrPos{color:#000000; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #FFF, -1px -1px 0px #FFF, -1px 1px 0px #FFF, 1px -1px 0px #FFF, 1px 0px 0px #FFF, -1px  0px 0px #FFF, 0px 1px 0px #FFF, 0px -1px 0px #FFF;}
 .StrTemp00{color:#002080; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #FFF, -1px -1px 0px #FFF, -1px 1px 0px #FFF, 1px -1px 0px #FFF, 1px 0px 0px #FFF, -1px  0px 0px #FFF, 0px 1px 0px #FFF, 0px -1px 0px #FFF;}
 .StrTemp01{color:#0039E4; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #FFF, -1px -1px 0px #FFF, -1px 1px 0px #FFF, 1px -1px 0px #FFF, 1px 0px 0px #FFF, -1px  0px 0px #FFF, 0px 1px 0px #FFF, 0px -1px 0px #FFF;}
 .StrTemp02{color:#006CFF; font-size:12px; line-height:12px; font-weight:800; text-align:center; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, -1px 1px 0px #000, 1px -1px 0px #000, 1px 0px 0px #000, -1px  0px 0px #000, 0px 1px 0px #000, 0px -1px 0px #000;}
