@@ -13,7 +13,7 @@ function GetParams(){
 		
 		if(elem[0]=='lat' && !isNaN(elem[1])){dLat=Number(elem[1]); bFlgP=1; }
 		else if(elem[0]=='lon'&& !isNaN(elem[1])){dLon=Number(elem[1]); bFlgP=1; }
-		else if(elem[0]=='z'&& !isNaN(elem[1])){dZoom=Number(elem[1]);  bFlgP=1; }
+		else if(elem[0]=='z'&& !isNaN(elem[1])){iZoom=Number(elem[1]);  bFlgP=1; }
 		else if(elem[0]=='t0'&& !isNaN(elem[1])){dMinT=Number(elem[1]); bFlgT=1; }
 		else if(elem[0]=='dt'&& !isNaN(elem[1])){dTStep=Number(elem[1]); bFlgT=1; }
 		else if(elem[0]=='b_map'){ sMap=elem[1]; }
@@ -21,7 +21,7 @@ function GetParams(){
 	
 	//位置・縮尺設定
 	if(bFlgP){
-		map.setView([dLat, dLon], dZoom);
+		map.setView([dLat, dLon], iZoom);
 	}
 	
 	//気温設定(HTML上のコントロール反映)
@@ -298,8 +298,8 @@ function AddRadarLayer(AMeDAS_Date){
 		let sB = arRadarTs[i].substring(0,14);
 		let sV = arRadarTs[i].substring(14,28);
 		if(sV == AMeDAS_Date){
-			lyRadar = L.tileLayer('https://www.jma.go.jp/bosai/jmatile/data/nowc/'+sB+'/none/'+sV+'/surf/hrpns/{z}/{x}/{y}.png',
-				{minZoom:4, maxZoom:16, maxNativeZoom:10, opacity: dOpacity, pane:"PaneRadar"}
+			lyRadar = L.tileLayer.ZoomSubstitute('https://www.jma.go.jp/bosai/jmatile/data/nowc/'+sB+'/none/'+sV+'/surf/hrpns/{z}/{x}/{y}.png',
+				{minZoom:4, maxZoom:16, maxNativeZoom:10, opacity:dOpacity, pane:"PaneRadar", tileSize: 256}
 			);
 			map.addLayer(lyRadar);
 			elRdr.text = "表示中";
@@ -329,6 +329,74 @@ function ChangeRadarOpacity(){
 		lyRadar.setOpacity(dOpacity);
 	}
 }
+
+//ZoomLevelが奇数の場合対策
+(function () {
+	if (typeof L === 'undefined') {
+		throw new Error('Leaflet must be loaded before the ZoomSubstitute plugin.');
+	}
+	L.TileLayer.ZoomSubstitute = L.TileLayer.extend({
+		createTile: function (coords, done) {
+			const actualZoom = coords.z;
+			const useZoom = (actualZoom % 2 === 1) ? actualZoom - 1 : actualZoom;
+			if (coords.z % 2 == 0){
+				//偶数Zoomのとき → そのままタイル出力
+				const tile = document.createElement('img');
+				tile.setAttribute('role', 'presentation');
+				tile.className = 'leaflet-tile';
+				const url = L.Util.template(this._url, {
+					s: this._getSubdomain(coords),
+					z: coords.z,
+					x: coords.x,
+					y: coords.y
+				});
+ 				tile.onload = L.bind(this._tileOnLoad, this, done, tile);
+ 				tile.onerror = L.bind(this._tileOnError, this, done, tile);
+ 				tile.src = url;
+				return tile;
+			} else {
+				//奇数Zoomのとき → zoom-1のタイルを引き延ばして表示する
+				const scale = 2;
+				const tileSize = this.options.tileSize;
+				
+				const X2 = Math.floor(coords.x / scale);
+				const Y2 = Math.floor(coords.y / scale);
+				const deltX = (coords.x % 2 == 0) ? 0 : -tileSize;
+				const deltY = (coords.y % 2 == 0) ? 0 : -tileSize;
+				
+				//親要素にDivを追加
+				const tileP = document.createElement('div');
+				tileP.style.width = tileSize + 'px';
+				tileP.style.height = tileSize + 'px';
+				tileP.style.overflow= 'hidden'; //拡大した画像の範囲外の部分を隠すため
+				const url = L.Util.template(this._url, {
+					s: this._getSubdomain(coords),
+					z: coords.z - 1,
+					x: X2,
+					y: Y2
+				});
+				
+				const tileC = document.createElement('img');
+				tileC.style.width = tileSize + 'px';
+				tileC.style.height = tileSize + 'px';
+				tileC.style.transformOrigin = 'top left';
+				tileC.style.transform = 'translate(' + deltX + 'px, ' + deltY + 'px) scale(' + scale + ')';
+				tileC.onload = L.bind(this._tileOnLoad, this, done, tileC);
+				tileC.onerror = L.bind(this._tileOnError, this, done, tileC);
+				tileC.src = url;
+				
+				tileP.appendChild(tileC);
+				return tileP;
+			}
+		}
+	});
+
+	L.tileLayer.ZoomSubstitute = function (url, options) {
+		return new L.TileLayer.ZoomSubstitute(url, options);
+	};
+})();
+
+
 
 //▼凡例
 //気温から色に対応したクラス名を返す
@@ -483,10 +551,10 @@ class PointFeature{
 
 //スケールによる表示制御
 function LayerSwitchByZScale(){
-	dZoom = map.getZoom();
+	iZoom = map.getZoom();
 	
 	//気温表示
-	if(dZoom < 9){
+	if(iZoom < 9){
 		if(map.hasLayer(lyTempStr)){map.removeLayer(lyTempStr);}
 		if(map.hasLayer(lyWindBarbL)){map.removeLayer(lyWindBarbL);}
 		if(lyWindBarbS){ map.addLayer(lyWindBarbS);}
@@ -497,10 +565,24 @@ function LayerSwitchByZScale(){
 	}
 	
 	//観測点名表示
-	if(dZoom < 10){
+	if(iZoom < 10){
 		if(map.hasLayer(lyObsName)){map.removeLayer(lyObsName);}
 	} else {
 		if(lyObsName) {map.addLayer(lyObsName);}
+	}
+}
+
+function AfterMove(){
+	iZoom = map.getZoom();
+	dLon = map.getCenter().lng.toFixed(6);
+	dLat = map.getCenter().lat.toFixed(6);
+	ReplaceURL();
+	
+	if(10 <= iZoom){
+		if(lyObsName) {map.addLayer(lyObsName);}
+		if(lyTempStr) {map.addLayer(lyTempStr);}
+	} else if(9 == iZoom){
+		if(lyTempStr) {map.addLayer(lyTempStr);}
 	}
 }
 
@@ -508,7 +590,7 @@ function LayerSwitchByZScale(){
 function ReplaceURL(){
 	let sQuery = "lat=" + dLat + "&"
 		+ "lon=" + dLon + "&"
-		+ "z=" + dZoom + "&b_map=" + $('[name="lyr"]:checked').val();
+		+ "z=" + iZoom + "&b_map=" + $('[name="lyr"]:checked').val();
 	
 	//気温レンジ
 	if(dMinT != -10 || dTStep != 5){
