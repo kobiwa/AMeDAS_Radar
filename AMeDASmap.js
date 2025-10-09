@@ -675,130 +675,197 @@ function DrawGraph(e){
 }
 
 //PopUpにグラフを表示する(実処理)
-function DrawGraph_2(layer){
-	const iN = 8; //3時間データをどれだけ取得するか
-	
-	let pps = layer.feature.properties;
-	
-	//リストボックスで選択された値(日付:yyyyMMddHHmmSS)
-	let dtNewest = Fmtd2DateTime(document.getElementById("lsDateTime").value);
-	
-	//グラフのラベル: 時刻
-	let sLabs = Array(144); //144 = 24hr×6
-	let dtDat = new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate());
-	for(let i = 0; i < sLabs.length; i++){ sLabs[i] = formatDate(dtDat, "HH:mm"); dtDat.setMinutes(dtDat.getMinutes() + 10); }
-	
-	//データ初期化:データそのものはグローバル
-	for(let elem in htData){ 
-		for(let iD = 0; iD < htData[elem].values.length; iD++){ 
-			htData[elem].values[iD] = Array(sLabs.length);
-			htData[elem].N = 0;
-			for(let i = 0; i < sLabs.length; i++){ htData[elem].values[iD][i] = null; }
-		}
-	}
-	
-	//データを取得する
-	$.ajaxSetup({async: false}); //jQueryを同期モードへ
-	for(let iD = 0; iD < 3; iD++){ //0:当日、1:前日、2:前々日
-		for(let iH = 0; iH < 24; iH += 3){
-			dtDat = new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate() - iD);
-			dtDat.setHours(dtDat.getHours() + iH);
-			if(dtNewest < dtDat){ break; }
-			let sURL = "https://www.jma.go.jp/bosai/amedas/data/point/"+ pps.Code +"/" + formatDate(dtDat, "yyyyMMdd_HH") +".json";
-			$.getJSON(sURL, function(data, status, xhr){
-				dt0 = new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate() - iD);
-				for(let key in data){
-					let idx = (Fmtd2DateTime(key).getTime() - dt0.getTime())/(10*60*1000);
-					for(let elem in layer.feature.ObsData){
-						if(htData[elem]){
-							if(data[key][elem]){ 
-								if(data[key][elem][1] == 0){ htData[elem].values[iD][idx] = data[key][elem][0]; htData[elem].N++; }}
-							}
-						}
-					}
-				}
-			); //$.getJSON
-		}
-	}
-	$.ajaxSetup({async: true});
-	
-	//日付凡例
-	for(let iD = 0; iD < 3; iD++){
-		dtDat = new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate() - iD);
-		let elLegDay = document.getElementsByClassName('Popup_Legend_Day' + iD);
-		for(let i = 0; i < elLegDay.length; i++){
-			elLegDay[i].innerHTML = formatDate(dtDat, "yyyy/MM/dd");
-		}
-	}
-	
-	//デフォルトのポップアップを閉じる
-	layer.closePopup();
-	
-	//ポップアップ生成
-	let elBg = document.getElementById('Popup_Bg');
-	let elGp = document.getElementById('PopupGraph');
-	let elTt = document.getElementById('PopupGraph_title');
-	let elCt = document.getElementById('PopupGraph_content');
-	let elCtTx = document.getElementById('PopupGraph_content_text');
-	elTt.innerText=pps.Name+' ('+pps.NameKana+' 標高:'+pps.Altitude+'m)';
-	elCtTx.innerHTML=formatDate(dtNewest, "yyyy/MM/dd HH:mm")+'<br>\n';
-	
-	//ポップアップの幅制御
-	const ppWidth = 600;
-	if(ppWidth <= elBg.clientWidth) { elGp.style.width = ppWidth+"px"; }
-	else { elGp.style.width = elBg.clientWidth+"px"; }
-	
-	//データ生成
-	for(let elem in htData){
-		let cnt = document.getElementById("cnt_" + elem);
-		if(htData[elem].N == 0){
-			cnt.style.display="none";
-		} else {
-			cnt.style.display="block";
-			let cvs = document.getElementById("cvs_" + elem).getContext("2d");
-			let data = CreateDataForChartJS(sLabs, htData[elem]);
-			
-			//凡例(非表示)・軸ラベル(表示)
-			data.options={};
-			data.options.legend={display:false,};
-			data.options.scales={};
-			data.options.scales.yAxes=[];
-			data.options.scales.yAxes[0]={scaleLabel:{labelString:htData[elem].name}};
-			data.options.scales.xAxes=[];
-			data.options.scales.xAxes[0]={ticks:{maxTicksLimit:13}};
-			
-			//降水量の処理: 負の値がない(雨が降らないときに不自然になるのを回避)
-			if(elem == 'precipitation10m' && Math.max.apply(null, htData[elem].values.flat(2)) < 1.0){
-				data.options.scales.yAxes[0].ticks={min:0, max:1};
-			}
-			
-			if(htCharts[elem]) {htCharts[elem].destroy();}
-			htCharts[elem] = new Chart(cvs, data);
-			
-			//ポップアップ冒頭の選択時刻の気象情報
-			elCtTx.innerHTML = elCtTx.innerHTML + htData[elem].name +':'+ layer.feature.ObsData[elem][0] + '[' + htData[elem].unit + '] ';
-		}
-	}
-	
-	//ポップアップの高さ制御
-	const diff_margin=50;
-	let diff_bp = elBg.clientHeight - elGp.clientHeight;
-	let diff_pc = elGp.clientHeight - elCt.clientHeight;
-	if(elBg.clientHeight-diff_margin < elGp.clientHeight){
-		elGp.style.height = (elBg.clientHeight-diff_margin)+"px";
-		elCt.style.height = (elBg.clientHeight-diff_margin-diff_pc)+"px";
-		let diff = elCt.clientHeight - (elBg.clientHeight-diff_margin-diff_pc); //スクロールバーのボタン分がずれるのを回避
-		elCt.style.height = (elBg.clientHeight-diff_margin-diff_pc-diff)+"px";
-	}
-	elBg.classList.add('js_active');
-	elGp.classList.add('js_active');
-	elBg.onclick = function() { //ポップアップを消すための処理
-		elBg.classList.remove('js_active');
-		elGp.classList.remove('js_active');
-	}
-	//処理中画面除去
-	RemoveLoading();
-	return ;
+async function DrawGraph_2(layer){
+  // iN unused in original beyond comment; keep if needed
+  const iN = 8; // 3時間データをどれだけ取得するか (keep for compatibility)
+
+  try {
+    const pps = layer.feature.properties;
+
+    // 選択された時刻(yyyyMMddHHmmss -> Date)
+    const dtNewest = Fmtd2DateTime(document.getElementById("lsDateTime").value);
+
+    // グラフラベル(10分刻みで24時間分 = 144)
+    const sLabs = new Array(144);
+    let dtDat = new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate());
+    for(let i = 0; i < sLabs.length; i++){
+      sLabs[i] = formatDate(dtDat, "HH:mm");
+      dtDat.setMinutes(dtDat.getMinutes() + 10);
+    }
+
+    // データ初期化 (htData はグローバルで既存)
+    for(let elem in htData){
+      for(let iD = 0; iD < htData[elem].values.length; iD++){
+        htData[elem].values[iD] = new Array(sLabs.length).fill(null);
+        htData[elem].N = 0;
+      }
+    }
+
+    // --- 非同期フェッチのヘルパー ---
+    async function fetchJSON(url){
+      try{
+        const resp = await fetch(url, {cache: "no-store"});
+        if(!resp.ok) return null;
+        return await resp.json();
+      } catch(e){
+        // ネットワークエラー等は null を返して続行
+        console.warn("fetchJSON error:", url, e);
+        return null;
+      }
+    }
+
+    // --- リクエスト URL を作る ---
+    // 仕様: iD = 0 (当日), 1 (前日), 2 (前々日)
+    const requests = [];
+    for(let iD = 0; iD < 3; iD++){
+      for(let iH = 0; iH < 24; iH += 3){
+        let dt = new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate() - iD);
+        dt.setHours(dt.getHours() + iH);
+        if(dtNewest < dt) break;
+        const url = "https://www.jma.go.jp/bosai/amedas/data/point/" + pps.Code + "/" + formatDate(dt, "yyyyMMdd_HH") + ".json";
+        requests.push({url, iD, baseDate: new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate() - iD)});
+      }
+    }
+
+    // --- 並列実行制限付きマッパー ---
+    // CONCURRENCY を適宜調整 (モバイルでは少なめ推奨)
+    const CONCURRENCY = 6;
+    async function mapWithConcurrency(items, worker){
+      const results = new Array(items.length);
+      let idx = 0;
+      const runners = new Array(CONCURRENCY).fill(null).map(async () => {
+        while(true){
+          const i = idx++;
+          if(i >= items.length) break;
+          try{
+            results[i] = await worker(items[i], i);
+          } catch(e){
+            results[i] = null;
+            console.warn("worker error:", e);
+          }
+        }
+      });
+      await Promise.all(runners);
+      return results;
+    }
+
+    // --- worker: 実際に取得して htData を埋める ---
+    await mapWithConcurrency(requests, async (req) => {
+      const data = await fetchJSON(req.url);
+      if(!data) return; // 取得失敗はスキップ
+
+      // data は {"yyyyMMddHHmmss": { elem: [value, flag], ... }, ...}
+      for(const key in data){
+        // idx は 10分間隔インデックス (0..143 等)
+        const t = Fmtd2DateTime(key).getTime();
+        const base = req.baseDate.getTime();
+        const idx = Math.round((t - base) / (10 * 60 * 1000));
+        if(idx < 0 || idx >= sLabs.length) continue;
+
+        // layer.feature.ObsData にある要素のみ処理する（元ロジックに準拠）
+        for(const elem in layer.feature.ObsData){
+          if(!htData[elem]) continue;
+          const cell = data[key][elem];
+          if(cell && cell[1] === 0){
+            // iD (0/1/2) のスライスに格納
+            htData[elem].values[req.iD][idx] = cell[0];
+            htData[elem].N++;
+          }
+        }
+      }
+    });
+
+    // --- 日付凡例の更新 (元実装に合わせる) ---
+    for(let iD = 0; iD < 3; iD++){
+      const dtL = new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate() - iD);
+      const elLegDay = document.getElementsByClassName('Popup_Legend_Day' + iD);
+      for(let i = 0; i < elLegDay.length; i++){
+        elLegDay[i].innerHTML = formatDate(dtL, "yyyy/MM/dd");
+      }
+    }
+
+    // ポップアップ処理 (元の DOM 操作をほぼ踏襲)
+    layer.closePopup();
+
+    const elBg = document.getElementById('Popup_Bg');
+    const elGp = document.getElementById('PopupGraph');
+    const elTt = document.getElementById('PopupGraph_title');
+    const elCt = document.getElementById('PopupGraph_content');
+    const elCtTx = document.getElementById('PopupGraph_content_text');
+
+    elTt.innerText = pps.Name + ' (' + pps.NameKana + ' 標高:' + pps.Altitude + 'm)';
+    elCtTx.innerHTML = formatDate(dtNewest, "yyyy/MM/dd HH:mm") + '<br>\n';
+
+    // ポップアップ幅制御（元処理のまま）
+    const ppWidth = 600;
+    if(ppWidth <= elBg.clientWidth) { elGp.style.width = ppWidth + "px"; }
+    else { elGp.style.width = elBg.clientWidth + "px"; }
+
+    // Chart.js 用のデータ生成 & 表示
+    for(const elem in htData){
+      const cnt = document.getElementById("cnt_" + elem);
+      if(htData[elem].N == 0){
+        if(cnt) cnt.style.display = "none";
+      } else {
+        if(cnt) cnt.style.display = "block";
+        const cvsEl = document.getElementById("cvs_" + elem);
+        if(!cvsEl) continue;
+        const cvs = cvsEl.getContext("2d");
+        const data = CreateDataForChartJS(sLabs, htData[elem]);
+
+        // Chart オプションの整形 (元ロジックを踏襲)
+        data.options = {};
+        data.options.legend = { display: false };
+        data.options.scales = {};
+        data.options.scales.yAxes = [];
+        data.options.scales.yAxes[0] = { scaleLabel: { labelString: htData[elem].name } };
+        data.options.scales.xAxes = [];
+        data.options.scales.xAxes[0] = { ticks: { maxTicksLimit: 13 } };
+
+        if(elem === 'precipitation10m'){
+          // flatten 3次元配列対応: 元は values.flat(2)
+          // htData[elem].values is [ [..], [..], [..] ]
+          const flatVals = [].concat(...htData[elem].values);
+          const maxVal = flatVals.length ? Math.max.apply(null, flatVals.filter(v=>v!=null)) : 0;
+          if((isFinite(maxVal) ? maxVal : 0) < 1.0){
+            data.options.scales.yAxes[0].ticks = { min: 0, max: 1 };
+          }
+        }
+
+        // 既存チャートがあれば破棄
+        if(htCharts[elem]) { try { htCharts[elem].destroy(); } catch(e) { console.warn("destroy chart failed", e); } }
+        htCharts[elem] = new Chart(cvs, data);
+
+        // ポップアップ冒頭テキスト追記（元ロジック）
+        elCtTx.innerHTML = elCtTx.innerHTML + htData[elem].name + ':' + layer.feature.ObsData[elem][0] + '[' + htData[elem].unit + '] ';
+      }
+    }
+
+    // ポップアップ高さ制御 (元ロジックそのまま)
+    const diff_margin = 50;
+    let diff_bp = elBg.clientHeight - elGp.clientHeight;
+    let diff_pc = elGp.clientHeight - elCt.clientHeight;
+    if(elBg.clientHeight - diff_margin < elGp.clientHeight){
+      elGp.style.height = (elBg.clientHeight - diff_margin) + "px";
+      elCt.style.height = (elBg.clientHeight - diff_margin - diff_pc) + "px";
+      let diff = elCt.clientHeight - (elBg.clientHeight - diff_margin - diff_pc);
+      elCt.style.height = (elBg.clientHeight - diff_margin - diff_pc - diff) + "px";
+    }
+
+    // ポップアップ表示
+    elBg.classList.add('js_active');
+    elGp.classList.add('js_active');
+    elBg.onclick = function() {
+      elBg.classList.remove('js_active');
+      elGp.classList.remove('js_active');
+    }
+
+  } catch(err) {
+    console.error("DrawGraph_2 error:", err);
+  } finally {
+    // 進捗表示除去（元の RemoveLoading を使う）
+    try { RemoveLoading(); } catch(e) { console.warn("RemoveLoading failed:", e); }
+  }
 }
 
 //Chart.jsに載せるためのデータを作る
