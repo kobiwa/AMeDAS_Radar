@@ -137,9 +137,9 @@ function GetObsData(DateTime){
 			//リセット
 			gjPoints = new GeoJson();
 			if(lyTempStr != null && map.hasLayer(lyTempStr)){ map.removeLayer(lyTempStr); lyTempStr=null; }
-			if(lyTempCrl != null && map.hasLayer(lyTempCrl)){ map.removeLayer(lyTempCrl); lyTempStr=null;}
-			if(lyWindBarbL != null && map.hasLayer(lyWindBarbL)){ map.removeLayer(lyWindBarbL); lyTempStr=null;}
-			if(lyWindBarbS != null && map.hasLayer(lyWindBarbS)){ map.removeLayer(lyWindBarbS); lyTempStr=null;}
+			if(lyTempCrl != null && map.hasLayer(lyTempCrl)){ map.removeLayer(lyTempCrl); lyTempCrl=null;}
+			if(lyWindBarbL != null && map.hasLayer(lyWindBarbL)){ map.removeLayer(lyWindBarbL); lyWindBarbL=null;}
+			if(lyWindBarbS != null && map.hasLayer(lyWindBarbS)){ map.removeLayer(lyWindBarbS); lyWindBarbS=null;}
 
 			//▼GeoJSON作成
 			for (let code in ObsData) {
@@ -675,6 +675,7 @@ function DrawGraph(e){
 }
 
 //PopUpにグラフを表示する(実処理)
+// ---------- Replace existing DrawGraph_2 with this async version ----------
 async function DrawGraph_2(layer){
   // iN unused in original beyond comment; keep if needed
   const iN = 8; // 3時間データをどれだけ取得するか (keep for compatibility)
@@ -729,7 +730,7 @@ async function DrawGraph_2(layer){
 
     // --- 並列実行制限付きマッパー ---
     // CONCURRENCY を適宜調整 (モバイルでは少なめ推奨)
-    const CONCURRENCY = 6;
+    const CONCURRENCY = 4;
     async function mapWithConcurrency(items, worker){
       const results = new Array(items.length);
       let idx = 0;
@@ -867,6 +868,8 @@ async function DrawGraph_2(layer){
     try { RemoveLoading(); } catch(e) { console.warn("RemoveLoading failed:", e); }
   }
 }
+// ---------- end replacement ----------
+
 
 //Chart.jsに載せるためのデータを作る
 function CreateDataForChartJS(labels, values){
@@ -899,8 +902,9 @@ function IndicateLoading(){
 	elBody.appendChild(elDiv);
 }
 function RemoveLoading(elLoading){
-	let elDiv = document.getElementById("loading");
-	elDiv.parentNode.removeChild(elDiv);
+	const elDiv = document.getElementById("loading");
+	if (!elDiv) {return;}
+	if (elDiv.parentNode) { elDiv.parentNode.removeChild(elDiv); }
 }
 
 //▼日付処理関係
