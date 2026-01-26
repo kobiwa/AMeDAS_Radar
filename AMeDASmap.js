@@ -1,4 +1,8 @@
 //▼ここから関数集
+
+// 【修正箇所】グラフ描画の競合回避用変数
+var sCurrentCode = null;
+
 //GETパラメータ取得
 function GetParams(){
 	let sQuery = window.location.search.replace(/^\?/,'');
@@ -667,21 +671,21 @@ function IndicatePopupNotice(){
 
 //PopUpにグラフを表示する
 function DrawGraph(e){
-	//実処理は別スレッドへ
+	//実処理は別スレッド(async)へ
 	setTimeout(DrawGraph_2, 0, e.layer);
 	
 	//「くるくる」を表示
 	IndicateLoading();
 }
 
-//PopUpにグラフを表示する(実処理)
-// ---------- Replace existing DrawGraph_2 with this async version ----------
+//PopUpにグラフを表示する(実処理：非同期版)
+// 【修正箇所】Async/Awaitを用いた非同期取得 + 競合回避
 async function DrawGraph_2(layer){
-  // iN unused in original beyond comment; keep if needed
-  const iN = 8; // 3時間データをどれだけ取得するか (keep for compatibility)
-
   try {
     const pps = layer.feature.properties;
+    
+    // 【修正】現在処理中のコードを記録(Race Condition対策)
+    sCurrentCode = pps.Code;
 
     // 選択された時刻(yyyyMMddHHmmss -> Date)
     const dtNewest = Fmtd2DateTime(document.getElementById("lsDateTime").value);
@@ -729,7 +733,7 @@ async function DrawGraph_2(layer){
     }
 
     // --- 並列実行制限付きマッパー ---
-    // CONCURRENCY を適宜調整 (モバイルでは少なめ推奨)
+    // CONCURRENCY を適宜調整
     const CONCURRENCY = 4;
     async function mapWithConcurrency(items, worker){
       const results = new Array(items.length);
@@ -738,11 +742,12 @@ async function DrawGraph_2(layer){
         while(true){
           const i = idx++;
           if(i >= items.length) break;
+          // 【修正】別の地点がクリックされていたら処理を中断
+          if(sCurrentCode !== pps.Code) return;
           try{
             results[i] = await worker(items[i], i);
           } catch(e){
             results[i] = null;
-            console.warn("worker error:", e);
           }
         }
       });
@@ -752,8 +757,14 @@ async function DrawGraph_2(layer){
 
     // --- worker: 実際に取得して htData を埋める ---
     await mapWithConcurrency(requests, async (req) => {
+      // 【修正】別の地点がクリックされていたらfetchしない
+      if(sCurrentCode !== pps.Code) return;
+      
       const data = await fetchJSON(req.url);
       if(!data) return; // 取得失敗はスキップ
+
+      // 【修正】fetch後に別の地点になっていたら反映しない
+      if(sCurrentCode !== pps.Code) return;
 
       // data は {"yyyyMMddHHmmss": { elem: [value, flag], ... }, ...}
       for(const key in data){
@@ -763,7 +774,7 @@ async function DrawGraph_2(layer){
         const idx = Math.round((t - base) / (10 * 60 * 1000));
         if(idx < 0 || idx >= sLabs.length) continue;
 
-        // layer.feature.ObsData にある要素のみ処理する（元ロジックに準拠）
+        // layer.feature.ObsData にある要素のみ処理する
         for(const elem in layer.feature.ObsData){
           if(!htData[elem]) continue;
           const cell = data[key][elem];
@@ -775,8 +786,11 @@ async function DrawGraph_2(layer){
         }
       }
     });
+    
+    // 【修正】最終確認：別の地点がクリックされていたら描画しない
+    if(sCurrentCode !== pps.Code) return;
 
-    // --- 日付凡例の更新 (元実装に合わせる) ---
+    // --- 日付凡例の更新 ---
     for(let iD = 0; iD < 3; iD++){
       const dtL = new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate() - iD);
       const elLegDay = document.getElementsByClassName('Popup_Legend_Day' + iD);
@@ -785,7 +799,7 @@ async function DrawGraph_2(layer){
       }
     }
 
-    // ポップアップ処理 (元の DOM 操作をほぼ踏襲)
+    // ポップアップ処理
     layer.closePopup();
 
     const elBg = document.getElementById('Popup_Bg');
@@ -797,7 +811,7 @@ async function DrawGraph_2(layer){
     elTt.innerText = pps.Name + ' (' + pps.NameKana + ' 標高:' + pps.Altitude + 'm)';
     elCtTx.innerHTML = formatDate(dtNewest, "yyyy/MM/dd HH:mm") + '<br>\n';
 
-    // ポップアップ幅制御（元処理のまま）
+    // ポップアップ幅制御
     const ppWidth = 600;
     if(ppWidth <= elBg.clientWidth) { elGp.style.width = ppWidth + "px"; }
     else { elGp.style.width = elBg.clientWidth + "px"; }
@@ -814,7 +828,7 @@ async function DrawGraph_2(layer){
         const cvs = cvsEl.getContext("2d");
         const data = CreateDataForChartJS(sLabs, htData[elem]);
 
-        // Chart オプションの整形 (元ロジックを踏襲)
+        // Chart オプションの整形
         data.options = {};
         data.options.legend = { display: false };
         data.options.scales = {};
@@ -824,8 +838,7 @@ async function DrawGraph_2(layer){
         data.options.scales.xAxes[0] = { ticks: { maxTicksLimit: 13 } };
 
         if(elem === 'precipitation10m'){
-          // flatten 3次元配列対応: 元は values.flat(2)
-          // htData[elem].values is [ [..], [..], [..] ]
+          // flatten 3次元配列対応
           const flatVals = [].concat(...htData[elem].values);
           const maxVal = flatVals.length ? Math.max.apply(null, flatVals.filter(v=>v!=null)) : 0;
           if((isFinite(maxVal) ? maxVal : 0) < 1.0){
@@ -837,12 +850,12 @@ async function DrawGraph_2(layer){
         if(htCharts[elem]) { try { htCharts[elem].destroy(); } catch(e) { console.warn("destroy chart failed", e); } }
         htCharts[elem] = new Chart(cvs, data);
 
-        // ポップアップ冒頭テキスト追記（元ロジック）
+        // ポップアップ冒頭テキスト追記
         elCtTx.innerHTML = elCtTx.innerHTML + htData[elem].name + ':' + layer.feature.ObsData[elem][0] + '[' + htData[elem].unit + '] ';
       }
     }
 
-    // ポップアップ高さ制御 (元ロジックそのまま)
+    // ポップアップ高さ制御
     const diff_margin = 50;
     let diff_bp = elBg.clientHeight - elGp.clientHeight;
     let diff_pc = elGp.clientHeight - elCt.clientHeight;
@@ -864,12 +877,12 @@ async function DrawGraph_2(layer){
   } catch(err) {
     console.error("DrawGraph_2 error:", err);
   } finally {
-    // 進捗表示除去（元の RemoveLoading を使う）
-    try { RemoveLoading(); } catch(e) { console.warn("RemoveLoading failed:", e); }
+    // 進捗表示除去（ただし、現在地が最新なら）
+    if(sCurrentCode == layer.feature.properties.Code){
+      try { RemoveLoading(); } catch(e) { console.warn("RemoveLoading failed:", e); }
+    }
   }
 }
-// ---------- end replacement ----------
-
 
 //Chart.jsに載せるためのデータを作る
 function CreateDataForChartJS(labels, values){

@@ -9,19 +9,16 @@
 	<link rel="icon alternate" type="image/png" href="./favicon192.png" sizes="192x192">
 	<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
  	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-	<!-- 矢羽根の回転に使用 Copyright (c) 2015 Benjamin Becquet https://github.com/bbecquet/Leaflet.RotatedMarker/blob/master/LICENSE -->
 	<script src="https://bbecquet.github.io/Leaflet.RotatedMarker/leaflet.rotatedMarker.js"></script>
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.3.0/Chart.bundle.min.js" type="text/javascript"></script>
 
-	<!-- 地図表示のコード -->
-	<script src="./AMeDASmap.js?date=20251013"></script>
+	<script src="./AMeDASmap.js?date=20260126"></script>
 	<link rel="stylesheet" href="./AMeDASmap.css?date=20230609"/>
 </head>
 <body>
 	<div id="Popup_Bg">
-		<!-- 初期表示のPopup -->
-	    <div id="PopupNotice">
+		<div id="PopupNotice">
 	        <p id="PopupNotice_title">このページについて(免責事項)</p>
 	        <div id="PopupNotice_content">
 	        	このウインドウを閉じた時点、下記の全てに同意したものとみなします。
@@ -35,15 +32,12 @@
 	        	</ul>
 	        </div>
 	    </div>
-		<!-- グラフ表示のPopup -->
-	    <div id="PopupGraph">
+		<div id="PopupGraph">
 	        <p id="PopupGraph_title">地点名</p>
 	        <div id="PopupGraph_content">
 	        	<div id="PopupGraph_content_text"></div>
 	        	
 	        	
-				<!-- ★コンテナ・キャンバスのIDは気象庁JSONの要素名に合わせる★-->
-				<!-- 気温グラフ -->
 				<div id="cnt_temp" style="width:100%">
 					<div class="cnt_legend">気温[℃]</div><canvas id="cvs_temp"></canvas>
 	        		<div style="text-align:center;">
@@ -53,7 +47,6 @@
 	        		</div>
 				</div>
 				
-				<!-- 湿度グラフ -->
 				<div id="cnt_humidity" style="width:100%">
 					<div class="cnt_legend">相対湿度[％]</div><canvas id="cvs_humidity"></canvas>
 	        		<div style="text-align:center;">
@@ -63,7 +56,6 @@
 	        		</div>
 				</div>
 				
-				<!-- 風速グラフ -->
 				<div id="cnt_wind" style="width:100%">
 					<div class="cnt_legend">風速[m/s]</div><canvas id="cvs_wind"></canvas>
 	        		<div style="text-align:center;">
@@ -73,7 +65,6 @@
 	        		</div>
 				</div>
 				
-				<!-- 気圧グラフ -->
 				<div id="cnt_pressure" style="width:100%">
 					<div class="cnt_legend">気圧[hPa]</div><canvas id="cvs_pressure"></canvas>
 	        		<div style="text-align:center;">
@@ -83,7 +74,6 @@
 	        		</div>
 				</div>
 				
-				<!-- 降水量グラフ -->
 				<div id="cnt_precipitation10m" style="width:100%">
 					<div class="cnt_legend">降水量(10分間)[mm/10min]</div><canvas id="cvs_precipitation10m"></canvas>
 	        		<div style="text-align:center;">
@@ -95,12 +85,11 @@
 	        </div>
 	    </div>
 	</div>
-	<!-- 初期表示のPopup -->
 	<script type="text/javascript">
-	    window.addEventListener('load', IndicatePopupNotice(), false);
+	    // 【修正箇所】関数実行()を削除し、ロード後に実行されるように修正
+	    window.addEventListener('load', IndicatePopupNotice, false);
 	</script>
 	
-	<!-- メニュー -->
 	<div id="menu">
 		<select id="lsDateTime" onchange="GetSelectedDateForA()">
 		</select>
@@ -120,7 +109,6 @@
 				気温凡例 <a href="javascript:SwitchLegendT()" id="btnLegend">表示</a><br>
 				<form name="legend_temp">
 					<label><input name="tscale" type="radio" value="jma" checked>気象庁</label><br>
-					<!--label><input name="tscale" type="radio" value="tokyo">自動設定(月別)</label><br-->
 					<label><input name="tscale" type="radio" value="original">独自<span style="font-size:12px">(入力後反映ボタンを押下)</span></label>
 					<a href="javascript:SetTempRangeOriginal()" class="btnOther">反映</a><br>
 					T<span style="vertical-align:sub;">0</span>:<input type="text" value="-10" class="txtTemp">
