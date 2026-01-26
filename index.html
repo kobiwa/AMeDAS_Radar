@@ -107,7 +107,7 @@
 			</div>
 			<div class="menu_subCat">
 				気温凡例 <a href="javascript:SwitchLegendT()" id="btnLegend">表示</a><br>
-				<form name="legend_temp">
+				<form name="legend_temp" onsubmit="return false;">
 					<label><input name="tscale" type="radio" value="jma" checked>気象庁</label><br>
 					<label><input name="tscale" type="radio" value="original">独自<span style="font-size:12px">(入力後反映ボタンを押下)</span></label>
 					<a href="javascript:SetTempRangeOriginal()" class="btnOther">反映</a><br>
