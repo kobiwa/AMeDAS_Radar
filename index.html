@@ -111,8 +111,8 @@
 					<label><input name="tscale" type="radio" value="jma" checked>気象庁</label><br>
 					<label><input name="tscale" type="radio" value="original">独自<span style="font-size:12px">(入力後反映ボタンを押下)</span></label>
 					<a href="javascript:SetTempRangeOriginal()" class="btnOther">反映</a><br>
-					T<span style="vertical-align:sub;">0</span>:<input type="text" value="-10" class="txtTemp">
-					<span style="vertical-align:sub;">Δ</span>T:<input type="text" value="5" class="txtTemp">
+					T<span style="vertical-align:sub;">0</span>:<input type="text" value="-10" class="txtTemp" onfocus="event.stopPropagation();">
+					<span style="vertical-align:sub;">Δ</span>T:<input type="text" value="5" class="txtTemp" onfocus="event.stopPropagation();">
 				</form>
 			</div>
 			<div class="menu_subCat">
@@ -167,6 +167,10 @@
 			pressure:{name:"気圧", unit:"hPa", type:"line" ,values:Array(3), N:0},
 		};
 		
+		// ★ メニュー内での操作が地図に伝わらないようにする
+		var menuEl = document.getElementById('menu');
+		L.DomEvent.disableClickPropagation(menuEl);
+		L.DomEvent.disableScrollPropagation(menuEl);		
 		
 		//▼ここから表示処理呼び出し
 		GetTimes();
