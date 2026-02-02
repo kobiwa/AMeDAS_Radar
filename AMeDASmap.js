@@ -147,10 +147,15 @@ function GetObsData(DateTime){
 
 			//▼GeoJSON作成
 			for (let code in ObsData) {
+				let oi = htObsInfo[code];
 				if(code in htObsInfo === false) {continue;} //観測点情報が取れない場合は表示しない
-				let dLon = htObsInfo[code].lon[0]+htObsInfo[code].lon[1]/60;
-				let dLat = htObsInfo[code].lat[0]+htObsInfo[code].lat[1]/60;
+				let dLon = oi.lon[0]+oi.lon[1]/60;
+				let dLat = oi.lat[0]+oi.lat[1]/60;
 				let dTemp = 'NA';
+				
+				//elems[] = [気温,降水量,風向,風速,日照時間,積雪深,湿度,気圧]
+				let es = Array.from(oi.elems, Number);
+				
 				if('temp' in ObsData[code]){
 					if(ObsData[code].temp[1] == 0){ dTemp = ObsData[code].temp[0]; }
 				}
