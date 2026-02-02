@@ -429,20 +429,41 @@ jQuery(function() {
 			elTStep.disabled=true;
 			dMinT = -10;
 			dTStep = 5;
-			document.legend_temp.elements[2].value=dMinT;
-			document.legend_temp.elements[3].value=dTStep;
-			ReplaceURL();
+			elMinT.value=dMinT;
+			elTStep.value=dTStep;
 		} else {
 			elMinT.disabled=false;
 			elTStep.disabled=false;
-			ReplaceURL();
 		}
-		SetTempRange();
-		map.removeControl(ctLegT);
-		ctLegT = null;    		
+		// 1. URLを更新
+		ReplaceURL();
+		// 2. 凡例を再描画（古いのは消してから）
+		if(ctLegT){ map.removeControl(ctLegT); ctLegT = null; }
 		SwitchLegendT();
+		// 3. 気温レイヤーのみ色を更新（※全部作り直すのではなく再描画）
+		UpdateTempLayerStyles();
 	});
 });
+// 全データを取得し直さず、既存のレイヤーの色だけ変える（または気温のみ再生成）
+function UpdateTempLayerStyles() {
+	// 風向や地点名は変えなくていいので、気温に関するレイヤーだけ再処理する
+	if (lyTempCrl) {
+		lyTempCrl.eachLayer(function(layer) {
+			let dT = layer.feature.properties.Temp;
+			if(!isNaN(dT)) {
+				layer.setStyle({
+					fillColor: Temp2Color(dT)
+				});
+			}
+		});
+	}
+	// 気温の数字(テキスト)レイヤーはclassNameを動的に変えるのが難しいため、
+	// ここだけは再作成するか、あるいは一旦削除してGetObsDataを呼ぶ
+	// 今回は一番確実な「気温レイヤーのみ再生成」を行う
+	let elOpt = document.getElementById("lsDateTime");
+	GetObsInfo(elOpt.options[elOpt.selectedIndex].value);
+}
+
 
 //気温のレンジ・幅
 function SetTempRange(){
