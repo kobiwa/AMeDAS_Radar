@@ -1,8 +1,5 @@
 //▼ここから関数集
 
-// 【修正箇所】グラフ描画の競合回避用変数
-var sCurrentCode = null;
-
 //GETパラメータ取得
 function GetParams(){
 	let sQuery = window.location.search.replace(/^\?/,'');
@@ -135,7 +132,7 @@ function GetObsInfo(DateTime){
 
 //観測値を取得する
 function GetObsData(DateTime){
-	const url='https://www.jma.go.jp/bosai/amedas/data/map/' + DateTime +'.json';
+	let url='https://www.jma.go.jp/bosai/amedas/data/map/' + DateTime +'.json';
 	$.getJSON(url)
 		.done(function(ObsData, status, xhr){
 			//リセット
@@ -159,21 +156,35 @@ function GetObsData(DateTime){
 				if('temp' in ObsData[code]){
 					if(ObsData[code].temp[1] == 0){ dTemp = ObsData[code].temp[0]; }
 				}
+				else if (0 < es[0]){
+					//欠測対策(グラフ表示、以下の要素も同じ)
+					ObsData[code].temp=new Array(null, null);
+				}
+				
 				let dPrec1h = 'NA';
 				if('precipitation1h' in ObsData[code]){
 					if(ObsData[code].precipitation1h[1] == 0){ dPrec1h = ObsData[code].precipitation1h[0]; }
 				}
+				else if (0 < es[1]){
+					ObsData[code].precipitation1h=new Array(null, null);
+					ObsData[code].precipitation10m=new Array(null, null);
+				}
+				
 				let dWindDir = 'NA';
 				let dWindSpd = 'NA';
 				if('wind' in ObsData[code]){
 					if(ObsData[code].wind[1] == 0){ dWindSpd = ObsData[code].wind[0]; }
 					if(ObsData[code].windDirection[1] == 0){ dWindDir = ObsData[code].windDirection[0]; }
 				}
+				else if (0 < es[3]){
+					ObsData[code].wind=new Array(null, null);
+				}
 				
-				//富士山の例外処理(毎正時だけ相対湿度と気圧が観測されている)
-				if(code == "50066"){
-					if(ObsData["50066"].humidity == null){ ObsData["50066"].humidity=new Array(null, null);	}
-					if(ObsData["50066"].pressure == null){ ObsData["50066"].pressure=new Array(null, null);	}
+				if(ObsData[code].humidity == null && 0 < es[6]) {
+					ObsData[code].humidity=new Array(null, null);
+				}
+				if(ObsData[code].pressure == null && 0 < es[7]) {
+					ObsData[code].pressure=new Array(null, null);
 				}
 				
 				//gjPoints:GeoJsonクラス→少し下で定義している(GeoJSONの書式に準拠)
@@ -273,6 +284,9 @@ function GetObsData(DateTime){
   			map.addLayer(lyTempCrl);
   			map.addLayer(lyObsPos);
   			LayerSwitchByZScale();
+			
+			//【追加】ロード画面を消去
+			RemoveLoading();
 		});
 	//レーダーの表示制御
 	if(document.getElementById("btnRadar").text != "非表示"){
@@ -405,8 +419,6 @@ function ChangeRadarOpacity(){
 	};
 })();
 
-
-
 //▼凡例
 //気温から色に対応したクラス名を返す
 function Temp2Cls(Temp){
@@ -430,27 +442,36 @@ jQuery(function() {
 		let elTStep = document.legend_temp.elements[3];
 		
 		if(val == "jma"){
+			//気象庁準拠の凡例(気温レンジ)
+			//テキストボックスを無効 → 値更新
 			elMinT.disabled=true;
 			elTStep.disabled=true;
 			dMinT = -10;
 			dTStep = 5;
 			elMinT.value=dMinT;
 			elTStep.value=dTStep;
+			
+			//凡例・気温レイヤの色を更新
+			if(ctLegT){ map.removeControl(ctLegT); ctLegT = null; }
+			SwitchLegendT();
+			UpdateTempLayerStyles();
 		} else {
+			//独自凡例(気温レンジ)
+			//テキストボックスを有効に
 			elMinT.disabled=false;
 			elTStep.disabled=false;
+			
+			//凡例・気温レイヤの更新は「反映」ボタン押下時のみ
 		}
-		// 1. URLを更新
+		//URLを更新(クエリ:t0・dt)
 		ReplaceURL();
-		// 2. 凡例を再描画（古いのは消してから）
-		if(ctLegT){ map.removeControl(ctLegT); ctLegT = null; }
-		SwitchLegendT();
-		// 3. 気温レイヤーのみ色を更新（※全部作り直すのではなく再描画）
-		UpdateTempLayerStyles();
 	});
 });
 // 全データを取得し直さず、既存のレイヤーの色だけ変える（または気温のみ再生成）
 function UpdateTempLayerStyles() {
+	// 【追加】ロード画面を表示
+	IndicateLoading();
+
 	// 風向や地点名は変えなくていいので、気温に関するレイヤーだけ再処理する
 	if (lyTempCrl) {
 		lyTempCrl.eachLayer(function(layer) {
@@ -469,7 +490,6 @@ function UpdateTempLayerStyles() {
 	GetObsInfo(elOpt.options[elOpt.selectedIndex].value);
 }
 
-
 //気温のレンジ・幅
 function SetTempRange(){
 	//凡例再描画
@@ -485,6 +505,9 @@ function SetTempRange(){
 
 //気温のレンジ・幅
 function SetTempRangeOriginal(){
+	// 【追加】ロード画面を表示
+	IndicateLoading();
+
 	if(isNaN(document.legend_temp.elements[2].value)){dMinT = -10;}
 	else{dMinT = Number(document.legend_temp.elements[2].value);}
 	
@@ -705,210 +728,211 @@ function DrawGraph(e){
 }
 
 //PopUpにグラフを表示する(実処理：非同期版)
-// 【修正箇所】Async/Awaitを用いた非同期取得 + 競合回避
+//Async/Awaitを用いた非同期取得 + 競合回避
 async function DrawGraph_2(layer){
-  try {
-    const pps = layer.feature.properties;
-    
-    // 【修正】現在処理中のコードを記録(Race Condition対策)
-    sCurrentCode = pps.Code;
-
-    // 選択された時刻(yyyyMMddHHmmss -> Date)
-    const dtNewest = Fmtd2DateTime(document.getElementById("lsDateTime").value);
-
-    // グラフラベル(10分刻みで24時間分 = 144)
-    const sLabs = new Array(144);
-    let dtDat = new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate());
-    for(let i = 0; i < sLabs.length; i++){
-      sLabs[i] = formatDate(dtDat, "HH:mm");
-      dtDat.setMinutes(dtDat.getMinutes() + 10);
-    }
-
-    // データ初期化 (htData はグローバルで既存)
-    for(let elem in htData){
-      for(let iD = 0; iD < htData[elem].values.length; iD++){
-        htData[elem].values[iD] = new Array(sLabs.length).fill(null);
-        htData[elem].N = 0;
-      }
-    }
-
-    // --- 非同期フェッチのヘルパー ---
-    async function fetchJSON(url){
-      try{
-        const resp = await fetch(url, {cache: "no-store"});
-        if(!resp.ok) return null;
-        return await resp.json();
-      } catch(e){
-        // ネットワークエラー等は null を返して続行
-        console.warn("fetchJSON error:", url, e);
-        return null;
-      }
-    }
-
-    // --- リクエスト URL を作る ---
-    // 仕様: iD = 0 (当日), 1 (前日), 2 (前々日)
-    const requests = [];
-    for(let iD = 0; iD < 3; iD++){
-      for(let iH = 0; iH < 24; iH += 3){
-        let dt = new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate() - iD);
-        dt.setHours(dt.getHours() + iH);
-        if(dtNewest < dt) break;
-        const url = "https://www.jma.go.jp/bosai/amedas/data/point/" + pps.Code + "/" + formatDate(dt, "yyyyMMdd_HH") + ".json";
-        requests.push({url, iD, baseDate: new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate() - iD)});
-      }
-    }
-
-    // --- 並列実行制限付きマッパー ---
-    // CONCURRENCY を適宜調整
-    const CONCURRENCY = 4;
-    async function mapWithConcurrency(items, worker){
-      const results = new Array(items.length);
-      let idx = 0;
-      const runners = new Array(CONCURRENCY).fill(null).map(async () => {
-        while(true){
-          const i = idx++;
-          if(i >= items.length) break;
-          // 【修正】別の地点がクリックされていたら処理を中断
-          if(sCurrentCode !== pps.Code) return;
-          try{
-            results[i] = await worker(items[i], i);
-          } catch(e){
-            results[i] = null;
-          }
-        }
-      });
-      await Promise.all(runners);
-      return results;
-    }
-
-    // --- worker: 実際に取得して htData を埋める ---
-    await mapWithConcurrency(requests, async (req) => {
-      // 【修正】別の地点がクリックされていたらfetchしない
-      if(sCurrentCode !== pps.Code) return;
-      
-      const data = await fetchJSON(req.url);
-      if(!data) return; // 取得失敗はスキップ
-
-      // 【修正】fetch後に別の地点になっていたら反映しない
-      if(sCurrentCode !== pps.Code) return;
-
-      // data は {"yyyyMMddHHmmss": { elem: [value, flag], ... }, ...}
-      for(const key in data){
-        // idx は 10分間隔インデックス (0..143 等)
-        const t = Fmtd2DateTime(key).getTime();
-        const base = req.baseDate.getTime();
-        const idx = Math.round((t - base) / (10 * 60 * 1000));
-        if(idx < 0 || idx >= sLabs.length) continue;
-
-        // layer.feature.ObsData にある要素のみ処理する
-        for(const elem in layer.feature.ObsData){
-          if(!htData[elem]) continue;
-          const cell = data[key][elem];
-          if(cell && cell[1] === 0){
-            // iD (0/1/2) のスライスに格納
-            htData[elem].values[req.iD][idx] = cell[0];
-            htData[elem].N++;
-          }
-        }
-      }
-    });
-    
-    // 【修正】最終確認：別の地点がクリックされていたら描画しない
-    if(sCurrentCode !== pps.Code) return;
-
-    // --- 日付凡例の更新 ---
-    for(let iD = 0; iD < 3; iD++){
-      const dtL = new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate() - iD);
-      const elLegDay = document.getElementsByClassName('Popup_Legend_Day' + iD);
-      for(let i = 0; i < elLegDay.length; i++){
-        elLegDay[i].innerHTML = formatDate(dtL, "yyyy/MM/dd");
-      }
-    }
-
-    // ポップアップ処理
-    layer.closePopup();
-
-    const elBg = document.getElementById('Popup_Bg');
-    const elGp = document.getElementById('PopupGraph');
-    const elTt = document.getElementById('PopupGraph_title');
-    const elCt = document.getElementById('PopupGraph_content');
-    const elCtTx = document.getElementById('PopupGraph_content_text');
-
-    elTt.innerText = pps.Name + ' (' + pps.NameKana + ' 標高:' + pps.Altitude + 'm)';
-    elCtTx.innerHTML = formatDate(dtNewest, "yyyy/MM/dd HH:mm") + '<br>\n';
-
-    // ポップアップ幅制御
-    const ppWidth = 600;
-    if(ppWidth <= elBg.clientWidth) { elGp.style.width = ppWidth + "px"; }
-    else { elGp.style.width = elBg.clientWidth + "px"; }
-
-    // Chart.js 用のデータ生成 & 表示
-    for(const elem in htData){
-      const cnt = document.getElementById("cnt_" + elem);
-      if(htData[elem].N == 0){
-        if(cnt) cnt.style.display = "none";
-      } else {
-        if(cnt) cnt.style.display = "block";
-        const cvsEl = document.getElementById("cvs_" + elem);
-        if(!cvsEl) continue;
-        const cvs = cvsEl.getContext("2d");
-        const data = CreateDataForChartJS(sLabs, htData[elem]);
-
-        // Chart オプションの整形
-        data.options = {};
-        data.options.legend = { display: false };
-        data.options.scales = {};
-        data.options.scales.yAxes = [];
-        data.options.scales.yAxes[0] = { scaleLabel: { labelString: htData[elem].name } };
-        data.options.scales.xAxes = [];
-        data.options.scales.xAxes[0] = { ticks: { maxTicksLimit: 13 } };
-
-        if(elem === 'precipitation10m'){
-          // flatten 3次元配列対応
-          const flatVals = [].concat(...htData[elem].values);
-          const maxVal = flatVals.length ? Math.max.apply(null, flatVals.filter(v=>v!=null)) : 0;
-          if((isFinite(maxVal) ? maxVal : 0) < 1.0){
-            data.options.scales.yAxes[0].ticks = { min: 0, max: 1 };
-          }
-        }
-
-        // 既存チャートがあれば破棄
-        if(htCharts[elem]) { try { htCharts[elem].destroy(); } catch(e) { console.warn("destroy chart failed", e); } }
-        htCharts[elem] = new Chart(cvs, data);
-
-        // ポップアップ冒頭テキスト追記
-        elCtTx.innerHTML = elCtTx.innerHTML + htData[elem].name + ':' + layer.feature.ObsData[elem][0] + '[' + htData[elem].unit + '] ';
-      }
-    }
-
-    // ポップアップ高さ制御
-    const diff_margin = 50;
-    let diff_bp = elBg.clientHeight - elGp.clientHeight;
-    let diff_pc = elGp.clientHeight - elCt.clientHeight;
-    if(elBg.clientHeight - diff_margin < elGp.clientHeight){
-      elGp.style.height = (elBg.clientHeight - diff_margin) + "px";
-      elCt.style.height = (elBg.clientHeight - diff_margin - diff_pc) + "px";
-      let diff = elCt.clientHeight - (elBg.clientHeight - diff_margin - diff_pc);
-      elCt.style.height = (elBg.clientHeight - diff_margin - diff_pc - diff) + "px";
-    }
-
-    // ポップアップ表示
-    elBg.classList.add('js_active');
-    elGp.classList.add('js_active');
-    elBg.onclick = function() {
-      elBg.classList.remove('js_active');
-      elGp.classList.remove('js_active');
-    }
-
-  } catch(err) {
-    console.error("DrawGraph_2 error:", err);
-  } finally {
-    // 進捗表示除去（ただし、現在地が最新なら）
-    if(sCurrentCode == layer.feature.properties.Code){
-      try { RemoveLoading(); } catch(e) { console.warn("RemoveLoading failed:", e); }
-    }
-  }
-}
+	try {
+	const pps = layer.feature.properties;
+	
+	//現在処理中のコードをグローバル変数に記録(Race Condition対策)
+	sCurrentCode = pps.Code;
+	
+	// 選択された時刻(yyyyMMddHHmmss -> Date)
+	const dtNewest = Fmtd2DateTime(document.getElementById("lsDateTime").value);
+	
+	// グラフラベル(10分刻みで24時間分 = 144)
+	const sLabs = new Array(144);
+	let dtDat = new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate());
+	for(let i = 0; i < sLabs.length; i++){
+	  sLabs[i] = formatDate(dtDat, "HH:mm");
+	  dtDat.setMinutes(dtDat.getMinutes() + 10);
+	}
+	
+	// データ初期化 (htData はグローバルで既存)
+	for(let elem in htData){
+		for(let iD = 0; iD < htData[elem].values.length; iD++){
+			htData[elem].values[iD] = new Array(sLabs.length).fill(null);
+			htData[elem].N = 0;
+		}
+	}
+	
+	// --- 非同期フェッチのヘルパー ---
+	async function fetchJSON(url){
+		try{
+			const resp = await fetch(url, {cache: "no-store"});
+			if(!resp.ok) return null;
+			return await resp.json();
+		} catch(e){
+			// ネットワークエラー等は null を返して続行
+			console.warn("fetchJSON error:", url, e);
+			return null;
+		}
+	}
+	
+	// --- リクエスト URL を作る ---
+	// 仕様: iD = 0 (当日), 1 (前日), 2 (前々日)
+	const requests = [];
+	for(let iD = 0; iD < 3; iD++){
+		for(let iH = 0; iH < 24; iH += 3){
+			  let dt = new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate() - iD);
+			  dt.setHours(dt.getHours() + iH);
+			  if(dtNewest < dt) break;
+			  const url = "https://www.jma.go.jp/bosai/amedas/data/point/" + pps.Code + "/" + formatDate(dt, "yyyyMMdd_HH") + ".json";
+			  requests.push({url, iD, baseDate: new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate() - iD)});
+		}
+	}
+	
+	// --- 並列実行制限付きマッパー ---
+	// CONCURRENCY を適宜調整
+	const CONCURRENCY = 4;
+	async function mapWithConcurrency(items, worker){
+		const results = new Array(items.length);
+		let idx = 0;
+		const runners = new Array(CONCURRENCY).fill(null).map(async () => {
+			while(true){
+				const i = idx++;
+				if(i >= items.length) break;
+				// 別の地点がクリックされていたら処理を中断
+				if(sCurrentCode !== pps.Code) return;
+				try{
+					results[i] = await worker(items[i], i);
+				} catch(e){
+					results[i] = null;
+				}
+			}
+		});
+		await Promise.all(runners);
+		return results;
+	}
+	
+	// --- worker: 実際に取得して htData を埋める ---
+	await mapWithConcurrency(requests, async (req) => {
+		// 別の地点がクリックされていたらfetchしない
+		if(sCurrentCode !== pps.Code) return;
+		
+		const data = await fetchJSON(req.url);
+		if(!data) return; // 取得失敗はスキップ
+		
+		// fetch後に別の地点になっていたら反映しない
+		if(sCurrentCode !== pps.Code) return;
+		
+		// data は {"yyyyMMddHHmmss": { elem: [value, flag], ... }, ...}
+		for(const key in data){
+			// idx は 10分間隔インデックス (0..143 等)
+			const t = Fmtd2DateTime(key).getTime();
+			const base = req.baseDate.getTime();
+			const idx = Math.round((t - base) / (10 * 60 * 1000));
+			if(idx < 0 || idx >= sLabs.length) continue;
+			
+			// layer.feature.ObsData にある要素のみ処理する
+			for(const elem in layer.feature.ObsData){
+				if(!htData[elem]) continue;
+				const cell = data[key][elem];
+				if(cell && cell[1] === 0){
+					// iD (0/1/2) のスライスに格納
+					htData[elem].values[req.iD][idx] = cell[0];
+					htData[elem].N++;
+				}
+			}
+		}
+	});
+	
+	// 最終確認：別の地点がクリックされていたら描画しない
+	if(sCurrentCode !== pps.Code) return;
+	
+	// --- 日付凡例の更新 ---
+	for(let iD = 0; iD < 3; iD++){
+		const dtL = new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate() - iD);
+		const elLegDay = document.getElementsByClassName('Popup_Legend_Day' + iD);
+		for(let i = 0; i < elLegDay.length; i++){
+			elLegDay[i].innerHTML = formatDate(dtL, "yyyy/MM/dd");
+		}
+	}
+	
+	// ポップアップ処理
+	layer.closePopup();
+	
+	const elBg = document.getElementById('Popup_Bg');
+	const elGp = document.getElementById('PopupGraph');
+	const elTt = document.getElementById('PopupGraph_title');
+	const elCt = document.getElementById('PopupGraph_content');
+	const elCtTx = document.getElementById('PopupGraph_content_text');
+	
+	elTt.innerText = pps.Name + ' (' + pps.NameKana + ' 標高:' + pps.Altitude + 'm)';
+	elCtTx.innerHTML = formatDate(dtNewest, "yyyy/MM/dd HH:mm") + '<br>\n';
+	
+	// ポップアップ幅制御
+	const ppWidth = 600;
+	if(ppWidth <= elBg.clientWidth) { elGp.style.width = ppWidth + "px"; }
+	else { elGp.style.width = elBg.clientWidth + "px"; }
+	
+	// Chart.js 用のデータ生成 & 表示
+	for(const elem in htData){
+		const cnt = document.getElementById("cnt_" + elem);
+		if(htData[elem].N == 0){
+			//観測データの無い気象要素は非表示
+			if(cnt) cnt.style.display = "none";
+		} else {
+			if(cnt) cnt.style.display = "block";
+			const cvsEl = document.getElementById("cvs_" + elem);
+			if(!cvsEl) continue;
+			const cvs = cvsEl.getContext("2d");
+			const data = CreateDataForChartJS(sLabs, htData[elem]);
+			
+			// Chart オプションの整形
+			data.options = {};
+			data.options.legend = { display: false };
+			data.options.scales = {};
+			data.options.scales.yAxes = [];
+			data.options.scales.yAxes[0] = { scaleLabel: { labelString: htData[elem].name } };
+			data.options.scales.xAxes = [];
+			data.options.scales.xAxes[0] = { ticks: { maxTicksLimit: 13 } };
+			
+			if(elem === 'precipitation10m'){
+				// flatten 3次元配列対応
+				const flatVals = [].concat(...htData[elem].values);
+				const maxVal = flatVals.length ? Math.max.apply(null, flatVals.filter(v=>v!=null)) : 0;
+				if((isFinite(maxVal) ? maxVal : 0) < 1.0){
+					data.options.scales.yAxes[0].ticks = { min: 0, max: 1 };
+				}
+			}
+			
+			// 既存チャートがあれば破棄
+			if(htCharts[elem]) { try { htCharts[elem].destroy(); } catch(e) { console.warn("destroy chart failed", e); } }
+			htCharts[elem] = new Chart(cvs, data);
+			
+			// ポップアップ冒頭テキスト追記
+			elCtTx.innerHTML = elCtTx.innerHTML + htData[elem].name + ':' + layer.feature.ObsData[elem][0] + '[' + htData[elem].unit + '] ';
+		}
+	}
+	
+	// ポップアップ高さ制御
+	const diff_margin = 50;
+	let diff_bp = elBg.clientHeight - elGp.clientHeight;
+	let diff_pc = elGp.clientHeight - elCt.clientHeight;
+	if(elBg.clientHeight - diff_margin < elGp.clientHeight){
+		elGp.style.height = (elBg.clientHeight - diff_margin) + "px";
+		elCt.style.height = (elBg.clientHeight - diff_margin - diff_pc) + "px";
+		let diff = elCt.clientHeight - (elBg.clientHeight - diff_margin - diff_pc);
+		elCt.style.height = (elBg.clientHeight - diff_margin - diff_pc - diff) + "px";
+	}
+	
+	// ポップアップ表示
+	elBg.classList.add('js_active');
+	elGp.classList.add('js_active');
+	elBg.onclick = function() {
+		elBg.classList.remove('js_active');
+		elGp.classList.remove('js_active');
+	}
+	
+	} catch(err) {
+		console.error("DrawGraph_2 error:", err);
+	} finally {
+		// 進捗表示除去（ただし、現在地が最新なら）
+		if(sCurrentCode == layer.feature.properties.Code){
+			try { RemoveLoading(); } catch(e) { console.warn("RemoveLoading failed:", e); }
+		}
+	}
+} //ここまで:PopUpにグラフを表示する(実処理：非同期版)
 
 //Chart.jsに載せるためのデータを作る
 function CreateDataForChartJS(labels, values){

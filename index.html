@@ -13,7 +13,7 @@
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.3.0/Chart.bundle.min.js" type="text/javascript"></script>
 
-	<script src="./AMeDASmap.js?date=20260202"></script>
+	<script src="./AMeDASmap.js?date=20260203"></script>
 	<link rel="stylesheet" href="./AMeDASmap.css?date=20260130"/>
 </head>
 <body>
@@ -39,7 +39,7 @@
 	        	
 	        	
 				<div id="cnt_temp" style="width:100%">
-					<div class="cnt_legend">気温[℃]</div><canvas id="cvs_temp"></canvas>
+					<div class="cnt_legend">気温 [℃]</div><canvas id="cvs_temp"></canvas>
 	        		<div style="text-align:center;">
 	        			<span class="Popup_Legend_Day0">当日</span>
 	        			<span class="Popup_Legend_Day1">前日</span>
@@ -48,7 +48,7 @@
 				</div>
 				
 				<div id="cnt_humidity" style="width:100%">
-					<div class="cnt_legend">相対湿度[％]</div><canvas id="cvs_humidity"></canvas>
+					<div class="cnt_legend">相対湿度 [％]</div><canvas id="cvs_humidity"></canvas>
 	        		<div style="text-align:center;">
 	        			<span class="Popup_Legend_Day0">当日</span>
 	        			<span class="Popup_Legend_Day1">前日</span>
@@ -57,7 +57,7 @@
 				</div>
 				
 				<div id="cnt_wind" style="width:100%">
-					<div class="cnt_legend">風速[m/s]</div><canvas id="cvs_wind"></canvas>
+					<div class="cnt_legend">風速 [m/s]</div><canvas id="cvs_wind"></canvas>
 	        		<div style="text-align:center;">
 	        			<span class="Popup_Legend_Day0">当日</span>
 	        			<span class="Popup_Legend_Day1">前日</span>
@@ -66,7 +66,7 @@
 				</div>
 				
 				<div id="cnt_pressure" style="width:100%">
-					<div class="cnt_legend">気圧[hPa]</div><canvas id="cvs_pressure"></canvas>
+					<div class="cnt_legend">気圧 [hPa]</div><canvas id="cvs_pressure"></canvas>
 	        		<div style="text-align:center;">
 	        			<span class="Popup_Legend_Day0">当日</span>
 	        			<span class="Popup_Legend_Day1">前日</span>
@@ -75,13 +75,14 @@
 				</div>
 				
 				<div id="cnt_precipitation10m" style="width:100%">
-					<div class="cnt_legend">降水量(10分間)[mm/10min]</div><canvas id="cvs_precipitation10m"></canvas>
+					<div class="cnt_legend">降水量(10分間) [mm/10min]</div><canvas id="cvs_precipitation10m"></canvas>
 	        		<div style="text-align:center;">
 	        			<span class="Popup_Legend_Day0">当日</span>
 	        			<span class="Popup_Legend_Day1">前日</span>
 	        			<span class="Popup_Legend_Day2">前々日</span>
 	        		</div>
 				</div>
+				
 	        </div>
 	    </div>
 	</div>
@@ -141,6 +142,7 @@
 		var ctLegT = null;
 		var arRadarTs = null; //レーダー画像の時刻(JST)
 		var elSlider = document.getElementById('sldRadar'); //透過度
+		var sCurrentCode = null; //グラフ描画の競合回避用変数
 		elSlider.addEventListener('change', ChangeRadarOpacity);
 		
 		//カラーコード・最低カテゴリ上限値(月別)・カテゴリのStep
@@ -165,6 +167,7 @@
 			humidity:{name:"相対湿度", unit:"%", type:"line" ,values:Array(3), N:0},
 			wind:{name:"風速", unit:"m/s", type:"line" ,values:Array(3), N:0},
 			pressure:{name:"気圧", unit:"hPa", type:"line" ,values:Array(3), N:0},
+			snow:{name:"積雪深", unit:"cm", type:"line" ,values:Array(3), N:0},
 		};
 		
 		// ★ メニュー内での操作が地図に伝わらないようにする
