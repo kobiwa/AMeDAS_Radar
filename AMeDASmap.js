@@ -453,8 +453,7 @@ jQuery(function() {
 			
 			//凡例・気温レイヤの色を更新
 			if(ctLegT){ map.removeControl(ctLegT); ctLegT = null; }
-			SwitchLegendT();
-			UpdateTempLayerStyles();
+			SetTempRange();
 		} else {
 			//独自凡例(気温レンジ)
 			//テキストボックスを有効に
@@ -467,62 +466,32 @@ jQuery(function() {
 		ReplaceURL();
 	});
 });
-// 全データを取得し直さず、既存のレイヤーの色だけ変える（または気温のみ再生成）
-function UpdateTempLayerStyles() {
-	// 【追加】ロード画面を表示
-	IndicateLoading();
-
-	// 風向や地点名は変えなくていいので、気温に関するレイヤーだけ再処理する
-	if (lyTempCrl) {
-		lyTempCrl.eachLayer(function(layer) {
-			let dT = layer.feature.properties.Temp;
-			if(!isNaN(dT)) {
-				layer.setStyle({
-					fillColor: Temp2Color(dT)
-				});
-			}
-		});
-	}
-	// 気温の数字(テキスト)レイヤーはclassNameを動的に変えるのが難しいため、
-	// ここだけは再作成するか、あるいは一旦削除してGetObsDataを呼ぶ
-	// 今回は一番確実な「気温レイヤーのみ再生成」を行う
-	let elOpt = document.getElementById("lsDateTime");
-	GetObsInfo(elOpt.options[elOpt.selectedIndex].value);
-}
 
 //気温のレンジ・幅
 function SetTempRange(){
-	//凡例再描画
-	if(ctLegT){
-		map.removeControl(ctLegT);
-		ctLegT = null;
-	}
-	SwitchLegendT();
-	let elOpt = document.getElementById("lsDateTime");
-	GetObsInfo(elOpt.options[elOpt.selectedIndex].value);
-	ReplaceURL();
-}
-
-//気温のレンジ・幅
-function SetTempRangeOriginal(){
-	// 【追加】ロード画面を表示
+	//ロード画面を表示
 	IndicateLoading();
-
-	if(isNaN(document.legend_temp.elements[2].value)){dMinT = -10;}
-	else{dMinT = Number(document.legend_temp.elements[2].value);}
-	
-	if(isNaN(document.legend_temp.elements[3].value)){dTStep = 5;}
-	else{dTStep = Number(document.legend_temp.elements[3].value);}
-	
-	//凡例再描画
-	if(ctLegT){
-		map.removeControl(ctLegT);
-		ctLegT = null;
-	}
-	SwitchLegendT();
-	let elOpt = document.getElementById("lsDateTime");
-	GetObsInfo(elOpt.options[elOpt.selectedIndex].value);
-	ReplaceURL();
+	setTimeout(function() {
+		try{
+			if(isNaN(document.legend_temp.elements[2].value)){dMinT = -10;}
+			else{dMinT = Number(document.legend_temp.elements[2].value);}
+			
+			if(isNaN(document.legend_temp.elements[3].value)){dTStep = 5;}
+			else{dTStep = Number(document.legend_temp.elements[3].value);}
+			
+			//凡例再描画
+			if(ctLegT){
+				map.removeControl(ctLegT);
+				ctLegT = null;
+			}
+			SwitchLegendT();
+			let elOpt = document.getElementById("lsDateTime");
+			GetObsInfo(elOpt.options[elOpt.selectedIndex].value);
+			ReplaceURL();
+		} finally {
+			RemoveLoading(); //全て終わったときにロード画面消去
+		}
+	}, 100);
 }
 
 //レンジ・幅を凡例に反映
