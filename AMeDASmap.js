@@ -1,5 +1,109 @@
-//▼ここから関数集
+// ▼ Canvas上にテキストを一括描画するカスタムレイヤークラス
+L.CanvasTextLayer = L.Layer.extend({
+    initialize: function (geojson, options) {
+        this._geojson = geojson;
+        L.setOptions(this, options);
+    },
+    onAdd: function (map) {
+        this._map = map;
+        if (!this._canvas) {
+            this._canvas = L.DomUtil.create('canvas', 'leaflet-canvas-text-layer');
+            this._canvas.style.position = 'absolute';
+            this._canvas.style.pointerEvents = 'none';
+        }
+        var pane = map.getPane(this.options.pane || 'overlayPane');
+        // ★ 修正①: 再表示(addLayer)時に必ずDOMペインへ再追加する
+        if (this._canvas.parentNode !== pane) {
+            pane.appendChild(this._canvas);
+        }
+        map.on('move resize zoomend', this._update, this);
+        this._update();
+    },
+    onRemove: function (map) {
+        if (this._canvas && this._canvas.parentNode) {
+            this._canvas.parentNode.removeChild(this._canvas);
+        }
+        map.off('move resize zoomend', this._update, this);
+    },
+    _update: function () {
+        if (!this._map || !this._canvas) return;
+        var size = this._map.getSize();
+        var bounds = this._map.getBounds();
+        var dpr = window.devicePixelRatio || 1; // ★ 修正②: ディスプレイのピクセル比率を取得
 
+        // ★ 修正②: DPR(devicePixelRatio)に応じたキャンバスサイズと解像度の同期
+        this._canvas.width = size.x * dpr;
+        this._canvas.height = size.y * dpr;
+        this._canvas.style.width = size.x + 'px';
+        this._canvas.style.height = size.y + 'px';
+
+        var topLeft = this._map.containerPointToLayerPoint([0, 0]);
+        L.DomUtil.setPosition(this._canvas, topLeft);
+
+        var ctx = this._canvas.getContext('2d');
+        ctx.save();
+        ctx.scale(dpr, dpr); // ★ DPRスケーリングを適用
+        ctx.clearRect(0, 0, size.x, size.y);
+
+        if (!this._geojson || !this._geojson.features) {
+            ctx.restore();
+            return;
+        }
+
+        var textKey = this.options.textKey;
+        var font = this.options.font || '12px sans-serif';
+        var defaultColor = this.options.color || '#000000';
+        var colorFunc = this.options.colorFunc;
+        var defaultStrokeColor = this.options.strokeColor || '#ffffff';
+        var strokeColorFunc = this.options.strokeColorFunc;
+        var offsetY = this.options.offsetY || 0;
+        var offsetX = this.options.offsetX || 0;
+
+        ctx.font = font;
+        ctx.textAlign = this.options.textAlign || 'center';
+        ctx.textBaseline = 'middle';
+
+        for (var i = 0; i < this._geojson.features.length; i++) {
+            var feature = this._geojson.features[i];
+            var val = feature.properties[textKey];
+            if (val === undefined || val === 'NA' || val === null) continue;
+            
+            var lat = feature.geometry.coordinates[1];
+            var lng = feature.geometry.coordinates[0];
+            
+            if (!bounds.contains([lat, lng])) continue;
+
+            var pt = this._map.latLngToContainerPoint([lat, lng]);
+            var textStr = (typeof val === 'number') ? val.toFixed(1) : String(val);
+            var textColor = colorFunc ? colorFunc(val) : defaultColor;
+            var strokeColor = strokeColorFunc ? strokeColorFunc(val) : defaultStrokeColor;
+
+            // 袋文字の描画
+            ctx.strokeStyle = strokeColor;
+            ctx.lineWidth = 3;
+            ctx.strokeText(textStr, pt.x + offsetX, pt.y + offsetY);
+
+            ctx.fillStyle = textColor;
+            ctx.fillText(textStr, pt.x + offsetX, pt.y + offsetY);
+        }
+        ctx.restore();
+    }
+});
+
+// ▼ 気温から袋文字の縁取り色を返す (CSSの配色パターンに準拠)
+function Temp2StrokeColor(Temp){
+	let i = Math.ceil((Temp-dMinT)/dTStep);
+	if(i < 0){ i = 0; }
+	else if(sColors.length <= i){ i = sColors.length - 1; }
+	
+	// 明るい色（インデックス 03～09）は黒縁取り、それ以外の濃い色は白縁取り
+	if(i >= 3 && i <= 9){
+		return "#000000";
+	} else {
+		return "#ffffff";
+	}
+}
+//▼ここから関数集
 //GETパラメータ取得
 function GetParams(){
 	let sQuery = window.location.search.replace(/^\?/,'');
@@ -194,16 +298,15 @@ function GetObsData(DateTime){
   			
   			//▼レイヤ作成
   			//AMeDAS気温(str)
-  			lyTempStr = L.geoJSON(gjPoints, {
-  				interactive: false,
-  				pointToLayer: function(feature, latlng){
-  					if(!isNaN(feature.properties.Temp)){
-  						let sCls = Temp2Cls(feature.properties.Temp);
-  						let sTemp = feature.properties.Temp.toFixed(1);
-  						return L.marker(latlng, {interactive:false, icon:L.divIcon({html:sTemp, className:sCls, iconSize:[50,16], iconAnchor:[25,-5], zIndexOffset:2000})});
-  					}
-  				}
-  			});
+			lyTempStr = new L.CanvasTextLayer(gjPoints, {
+				textKey: 'Temp',
+				font: 'bold 11.5px sans-serif',
+				colorFunc: Temp2Color,
+				strokeColorFunc: Temp2StrokeColor,
+				offsetY: 10,
+				offsetX: -2,
+				pane: 'PaneCircle'
+			});
 			
   			//AMeDAS気温(Cercle)
   			lyTempCrl = L.geoJSON(gjPoints, {
@@ -235,13 +338,14 @@ function GetObsData(DateTime){
   			lyObsPos.on("click", function(e){DrawGraph(e)}); //クリックイベント(ポップアップ用)
   			
   			//AMeDAS観測点名称
-  			lyObsName = L.geoJSON(gjPoints, {
-  				interactive: false,
-  				pointToLayer: function(feature, latlng){
-  					return L.marker(latlng, {interactive:false, icon:L.divIcon({html:feature.properties.Name, className:"StrPos", iconSize:[80,17], iconAnchor:[40,16], zIndexOffset:2000})});
-  				}
-  			});
-			
+			lyObsName = new L.CanvasTextLayer(gjPoints, {
+				textKey: 'Name',
+				font: '500 12px sans-serif',
+				color: '#000000',
+				offsetY: -15,
+				offsetX: -2,
+				pane: 'PaneCircle'
+			});			
   			//AMeDAS風向風速(矢羽大)
   			lyWindBarbL = L.geoJSON(gjPoints, {
   				interactive: false,
@@ -509,14 +613,14 @@ function SwitchLegendT(){
 				let dTM = (dTU+dTL)/2;
 				if(i == 0){
 					div.innerHTML +=
-			    	'<i style="background:' + Temp2Color(dTM) + '"></i> &lt; ' + dTU + '<br>';
-		    	}else if(i < sColors.length-1){
+					'<i style="background:' + Temp2Color(dTM) + '"></i> &lt; ' + dTU + '<br>';
+				}else if(i < sColors.length-1){
 					div.innerHTML +=
-			    	'<i style="background:' + Temp2Color(dTM) + '"></i> ' + dTL + ' &ndash; ' + dTU + '<br>';
-		    	} else {
+					'<i style="background:' + Temp2Color(dTM) + '"></i> ' + dTL + ' &ndash; ' + dTU + '<br>';
+				} else {
 					div.innerHTML +=
-			    	'<i style="background:' + Temp2Color(dTM) + '"></i> ' + dTL + ' &lt; <br>';
-		    	}
+					'<i style="background:' + Temp2Color(dTM) + '"></i> ' + dTL + ' &lt; <br>';
+				}
 			}
 			return div;
 		}
@@ -571,26 +675,26 @@ class PointFeature{
 	}
 }
 
-//スケールによる表示制御
+// スケールによる表示制御
 function LayerSwitchByZScale(){
 	iZoom = map.getZoom();
 	
-	//気温表示
+	// 気温・矢羽の制御
 	if(iZoom < 9){
-		if(map.hasLayer(lyTempStr)){map.removeLayer(lyTempStr);}
-		if(map.hasLayer(lyWindBarbL)){map.removeLayer(lyWindBarbL);}
-		if(lyWindBarbS){ map.addLayer(lyWindBarbS);}
+		if(lyTempStr && map.hasLayer(lyTempStr)){ map.removeLayer(lyTempStr); }
+		if(lyWindBarbL && map.hasLayer(lyWindBarbL)){ map.removeLayer(lyWindBarbL); }
+		if(lyWindBarbS && !map.hasLayer(lyWindBarbS)){ map.addLayer(lyWindBarbS); }
 	} else {
-		if(map.hasLayer(lyWindBarbS)){map.removeLayer(lyWindBarbS);}
-		if(lyWindBarbL){map.addLayer(lyWindBarbL);}
-		if(lyTempStr) {map.addLayer(lyTempStr);}
+		if(lyWindBarbS && map.hasLayer(lyWindBarbS)){ map.removeLayer(lyWindBarbS); }
+		if(lyWindBarbL && !map.hasLayer(lyWindBarbL)){ map.addLayer(lyWindBarbL); }
+		if(lyTempStr && !map.hasLayer(lyTempStr)){ map.addLayer(lyTempStr); }
 	}
 	
-	//観測点名表示
+	// 観測点名表示の制御
 	if(iZoom < 10){
-		if(map.hasLayer(lyObsName)){map.removeLayer(lyObsName);}
+		if(lyObsName && map.hasLayer(lyObsName)){ map.removeLayer(lyObsName); }
 	} else {
-		if(lyObsName) {map.addLayer(lyObsName);}
+		if(lyObsName && !map.hasLayer(lyObsName)){ map.addLayer(lyObsName); }
 	}
 }
 
@@ -600,14 +704,9 @@ function AfterMove(){
 	dLat = map.getCenter().lat.toFixed(6);
 	ReplaceURL();
 	
-	if(10 <= iZoom){
-		if(lyObsName) {map.addLayer(lyObsName);}
-		if(lyTempStr) {map.addLayer(lyTempStr);}
-	} else if(9 == iZoom){
-		if(lyTempStr) {map.addLayer(lyTempStr);}
-	}
+	// ★ 修正: 表示制御ロジックを LayerSwitchByZScale に一元化
+	LayerSwitchByZScale();
 }
-
 //URL変更
 function ReplaceURL(){
 	let sQuery = "lat=" + dLat + "&"
@@ -675,15 +774,15 @@ function MoveToCurPos(){
 //初期表示のPopup
 function IndicatePopupNotice(){
 	if( !localStorage.getItem('PopupNotice') ) {
-	    localStorage.setItem('PopupNotice', 'on');
-	    let ppBg = document.getElementById('Popup_Bg');
-	    let ppNt = document.getElementById('PopupNotice');
-	    ppBg.classList.add('js_active');
-	    ppNt.classList.add('js_active');
-	    ppBg.onclick = function() {
-	        ppBg.classList.remove('js_active');
-	        ppNt.classList.remove('js_active');
-	    }
+		localStorage.setItem('PopupNotice', 'on');
+		let ppBg = document.getElementById('Popup_Bg');
+		let ppNt = document.getElementById('PopupNotice');
+		ppBg.classList.add('js_active');
+		ppNt.classList.add('js_active');
+		ppBg.onclick = function() {
+			ppBg.classList.remove('js_active');
+			ppNt.classList.remove('js_active');
+		}
 	}
 }
 
@@ -967,3 +1066,6 @@ function Fmtd2DateTime(FormattedString){
 	let iMn = Number(FormattedString.substring(10,12));
 	return new Date(iYr, iMt, iDy, iHr, iMn);
 }
+
+//
+
