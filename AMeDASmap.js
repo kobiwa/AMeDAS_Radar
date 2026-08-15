@@ -1,63 +1,86 @@
-// ▼ Canvas上にテキストを一括描画するカスタムレイヤークラス
-L.CanvasTextLayer = L.Layer.extend({
+// ▼ Canvas描画層の共通基底クラス（DPR対応・イベント透過・ライフサイクル管理）
+L.CanvasFeatureLayer = L.Layer.extend({
     initialize: function (geojson, options) {
         this._geojson = geojson;
         L.setOptions(this, options);
+        this._animFrameId = null; // rAF管理用
     },
     onAdd: function (map) {
         this._map = map;
         if (!this._canvas) {
-            this._canvas = L.DomUtil.create('canvas', 'leaflet-canvas-text-layer');
+            this._canvas = L.DomUtil.create('canvas', 'leaflet-canvas-feature-layer');
             this._canvas.style.position = 'absolute';
             this._canvas.style.pointerEvents = 'none';
         }
         var pane = map.getPane(this.options.pane || 'overlayPane');
-        // ★ 修正①: 再表示(addLayer)時に必ずDOMペインへ再追加する
         if (this._canvas.parentNode !== pane) {
             pane.appendChild(this._canvas);
         }
-        map.on('move resize zoomend', this._update, this);
-        this._update();
+        // move中もrAFで制御するためイベント登録
+        map.on('move resize zoomend', this._onMapEvent, this);
+        this._onMapEvent();
     },
     onRemove: function (map) {
+        if (this._animFrameId) {
+            cancelAnimationFrame(this._animFrameId);
+        }
         if (this._canvas && this._canvas.parentNode) {
             this._canvas.parentNode.removeChild(this._canvas);
         }
-        map.off('move resize zoomend', this._update, this);
+        map.off('move resize zoomend', this._onMapEvent, this);
+    },
+    // ★リスク対策2: rAFを用いて描画リクエストをフレーム単位に集約・間引き
+    _onMapEvent: function () {
+        if (this._animFrameId) {
+            cancelAnimationFrame(this._animFrameId);
+        }
+        this._animFrameId = requestAnimationFrame(this._update.bind(this));
     },
     _update: function () {
         if (!this._map || !this._canvas) return;
-        var size = this._map.getSize();
-        var bounds = this._map.getBounds();
-        var dpr = window.devicePixelRatio || 1; // ★ 修正②: ディスプレイのピクセル比率を取得
 
-        // ★ 修正②: DPR(devicePixelRatio)に応じたキャンバスサイズと解像度の同期
-        this._canvas.width = size.x * dpr;
-        this._canvas.height = size.y * dpr;
-        this._canvas.style.width = size.x + 'px';
-        this._canvas.style.height = size.y + 'px';
+        var size = this._map.getSize();
+        // ★リスク対策3: iPhone等のDPR=3対策（上限2に制限してVRAMオーバーを防ぐ）
+        var dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+        var targetWidth = size.x * dpr;
+        var targetHeight = size.y * dpr;
+
+        // ★リスク対策1: サイズが実際に変わった時だけ Canvas をリサイズ（VRAM再割り当て防止）
+        if (this._canvas.width !== targetWidth || this._canvas.height !== targetHeight) {
+            this._canvas.width = targetWidth;
+            this._canvas.height = targetHeight;
+            this._canvas.style.width = size.x + 'px';
+            this._canvas.style.height = size.y + 'px';
+        }
 
         var topLeft = this._map.containerPointToLayerPoint([0, 0]);
         L.DomUtil.setPosition(this._canvas, topLeft);
 
         var ctx = this._canvas.getContext('2d');
         ctx.save();
-        ctx.scale(dpr, dpr); // ★ DPRスケーリングを適用
+        ctx.scale(dpr, dpr);
         ctx.clearRect(0, 0, size.x, size.y);
 
-        if (!this._geojson || !this._geojson.features) {
-            ctx.restore();
-            return;
+        if (this._geojson && this._geojson.features) {
+            var bounds = this._map.getBounds().pad(0.02);
+            this._drawFeatures(ctx, bounds);
         }
+        ctx.restore();
+    }
+});
 
+// ▼ テキスト一括描画クラス
+L.CanvasTextLayer = L.CanvasFeatureLayer.extend({
+    _drawFeatures: function (ctx, bounds, topLeft) {
         var textKey = this.options.textKey;
         var font = this.options.font || '12px sans-serif';
         var defaultColor = this.options.color || '#000000';
         var colorFunc = this.options.colorFunc;
         var defaultStrokeColor = this.options.strokeColor || '#ffffff';
         var strokeColorFunc = this.options.strokeColorFunc;
-        var offsetY = this.options.offsetY || 0;
         var offsetX = this.options.offsetX || 0;
+        var offsetY = this.options.offsetY || 0;
 
         ctx.font = font;
         ctx.textAlign = this.options.textAlign || 'center';
@@ -67,26 +90,66 @@ L.CanvasTextLayer = L.Layer.extend({
             var feature = this._geojson.features[i];
             var val = feature.properties[textKey];
             if (val === undefined || val === 'NA' || val === null) continue;
-            
+
             var lat = feature.geometry.coordinates[1];
             var lng = feature.geometry.coordinates[0];
-            
             if (!bounds.contains([lat, lng])) continue;
 
             var pt = this._map.latLngToContainerPoint([lat, lng]);
+            var x = pt.x + offsetX;
+            var y = pt.y + offsetY;
+
             var textStr = (typeof val === 'number') ? val.toFixed(1) : String(val);
             var textColor = colorFunc ? colorFunc(val) : defaultColor;
             var strokeColor = strokeColorFunc ? strokeColorFunc(val) : defaultStrokeColor;
 
-            // 袋文字の描画
             ctx.strokeStyle = strokeColor;
             ctx.lineWidth = 3;
-            ctx.strokeText(textStr, pt.x + offsetX, pt.y + offsetY);
+            ctx.strokeText(textStr, x, y);
 
             ctx.fillStyle = textColor;
-            ctx.fillText(textStr, pt.x + offsetX, pt.y + offsetY);
+            ctx.fillText(textStr, x, y);
         }
-        ctx.restore();
+    }
+});
+
+// ▼ 気温Circle一括描画クラス (今回改修対象)
+L.CanvasCircleLayer = L.CanvasFeatureLayer.extend({
+    _drawFeatures: function (ctx, bounds, topLeft) {
+        var offsetX = this.options.offsetX || 0;
+        var offsetY = this.options.offsetY || 0;
+
+        for (var i = 0; i < this._geojson.features.length; i++) {
+            var feature = this._geojson.features[i];
+            var lat = feature.geometry.coordinates[1];
+            var lng = feature.geometry.coordinates[0];
+
+            if (!bounds.contains([lat, lng])) continue;
+
+            var pt = this._map.latLngToContainerPoint([lat, lng]);
+            var x = pt.x + offsetX;
+            var y = pt.y + offsetY;
+
+            var val = feature.properties.Temp;
+            var radius = 4;
+            var fillColor = '#404040';
+
+            if (val !== undefined && val !== 'NA' && val !== null && !isNaN(val)) {
+                radius = 4;
+                fillColor = Temp2Color(Number(val));
+            } else {
+                radius = 2;
+                fillColor = '#404040';
+            }
+
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, 2 * Math.PI, false);
+            ctx.fillStyle = fillColor;
+            ctx.fill();
+            ctx.lineWidth = 0.5;
+            ctx.strokeStyle = '#000000';
+            ctx.stroke();
+        }
     }
 });
 
@@ -96,15 +159,14 @@ function Temp2StrokeColor(Temp){
 	if(i < 0){ i = 0; }
 	else if(sColors.length <= i){ i = sColors.length - 1; }
 	
-	// 明るい色（インデックス 03～09）は黒縁取り、それ以外の濃い色は白縁取り
 	if(i >= 3 && i <= 9){
 		return "#000000";
 	} else {
 		return "#ffffff";
 	}
 }
+
 //▼ここから関数集
-//GETパラメータ取得
 function GetParams(){
 	let sQuery = window.location.search.replace(/^\?/,'');
 	if(!sQuery) {return;}
@@ -124,12 +186,10 @@ function GetParams(){
 		else if(elem[0]=='b_map'){ sMap=elem[1]; }
 	}
 	
-	//位置・縮尺設定
 	if(bFlgP){
 		map.setView([dLat, dLon], iZoom);
 	}
 	
-	//気温設定(HTML上のコントロール反映)
 	if(bFlgT){
 		document.legend_temp.elements[0].checked = false;
 		document.legend_temp.elements[1].checked = true;
@@ -140,14 +200,12 @@ function GetParams(){
 		document.legend_temp.elements[3].disabled=false;
 	}
 	
-	//背景図選択
 	if(sMap == 'blk' || sMap == 'shd' || sMap == 'pal'){
 		$('[name=lyr]').val([sMap]);
 		SelectMap(sMap);
 	}
 }
 
-//最新時刻から288個(48時間分:6x48hr)の時刻を取得してOptionタグに追加する
 function GetTimes(){
 	let url='https://www.jma.go.jp/bosai/amedas/data/latest_time.txt';
 	let rd = new FileReader();
@@ -159,7 +217,6 @@ function GetTimes(){
 		let dt = new Date(data);
 		let elSel = document.getElementById("lsDateTime");
 		
-		//まず削除
 		while(elSel.lastChild){elSel.removeChild(elSel.lastChild);}
 		$("#btnExpandMenu").css({'padding': ""});
 		$("#menu").css({'width': ""});
@@ -173,17 +230,14 @@ function GetTimes(){
 			elSel.appendChild(elOpt);
 			dt.setMinutes(dt.getMinutes() - 10);
 		}
-		//メニューの幅を固定する
 		let w = $("#menu").outerWidth(true);
 		$("#menu").css({'width':w+10+"px"});
 		
-		//メニュー二段目の調整
 		let w1 = $("#btnExpandMenu").outerWidth(true);
 		let w2 = $("#btnCurPos").outerWidth(true);
 		let p = (w-w1-w2)/2;
 		$("#btnExpandMenu").css({'padding':"1px " + p+"px"});
 		
-		//メニュー(追加設定)の調整
 		document.getElementById("sldRadar").style.width = (w-60)+"px";
 		if($('[name="tscale"]').val() != "original"){
 			document.legend_temp.elements[2].disabled=true;
@@ -192,21 +246,17 @@ function GetTimes(){
 	}
 }
 
-//メニュー表示・非表示
 function ExpandMenu(){
 	let elSub = document.getElementById("menu_sub");
 	if(elSub.style.display=="block"){elSub.style.display="none";}
 	else{elSub.style.display="block";}
 }
 
-//リストボックスで選択された日付を渡す(AMeDAS)
 function GetSelectedDateForA(){
-	//リストボックスで選択された値(日付:yyyyMMddHHmmSS)
 	const DateTime = document.getElementById("lsDateTime").value;
 	GetObsInfo(DateTime);
 }
 
-//±10分
 function OffsetTime(iShift){
 	let elOpt = document.getElementById("lsDateTime");
 	let i;
@@ -221,7 +271,6 @@ function OffsetTime(iShift){
 	GetObsInfo(elOpt.options[i].value);
 }
 
-//観測点の情報を持っているか判別した後で観測値取得関数を呼び出す
 function GetObsInfo(DateTime){
 	const url='https://www.jma.go.jp/bosai/amedas/const/amedastable.json';
 	if(!htObsInfo){
@@ -234,34 +283,30 @@ function GetObsInfo(DateTime){
 	}
 }
 
-//観測値を取得する
 function GetObsData(DateTime){
+	const myCanvasRenderer = L.canvas({ pane: "PaneCircle" });
 	let url='https://www.jma.go.jp/bosai/amedas/data/map/' + DateTime +'.json';
 	$.getJSON(url)
 		.done(function(ObsData, status, xhr){
-			//リセット
 			gjPoints = new GeoJson();
-			if(lyTempStr != null && map.hasLayer(lyTempStr)){ map.removeLayer(lyTempStr); lyTempStr=null; }
-			if(lyTempCrl != null && map.hasLayer(lyTempCrl)){ map.removeLayer(lyTempCrl); lyTempCrl=null;}
-			if(lyWindBarbL != null && map.hasLayer(lyWindBarbL)){ map.removeLayer(lyWindBarbL); lyWindBarbL=null;}
-			if(lyWindBarbS != null && map.hasLayer(lyWindBarbS)){ map.removeLayer(lyWindBarbS); lyWindBarbS=null;}
-
-			//▼GeoJSON作成
+			// ▼ データ更新時のクリーンアップの安全化
+			if (lyTempStr) { map.removeLayer(lyTempStr); lyTempStr = null; }
+			if (lyTempCrl) { map.removeLayer(lyTempCrl); lyTempCrl = null; }
+			if (lyWindBarbL) { map.removeLayer(lyWindBarbL); lyWindBarbL = null; }
+			if (lyWindBarbS) { map.removeLayer(lyWindBarbS); lyWindBarbS = null; }
 			for (let code in ObsData) {
 				let oi = htObsInfo[code];
-				if(code in htObsInfo === false) {continue;} //観測点情報が取れない場合は表示しない
+				if(code in htObsInfo === false) {continue;}
 				let dLon = oi.lon[0]+oi.lon[1]/60;
 				let dLat = oi.lat[0]+oi.lat[1]/60;
 				let dTemp = 'NA';
 				
-				//elems[] = [気温,降水量,風向,風速,日照時間,積雪深,湿度,気圧]
 				let es = Array.from(oi.elems, Number);
 				
 				if('temp' in ObsData[code]){
 					if(ObsData[code].temp[1] == 0){ dTemp = ObsData[code].temp[0]; }
 				}
 				else if (0 < es[0]){
-					//欠測対策(グラフ表示、以下の要素も同じ)
 					ObsData[code].temp=new Array(null, null);
 				}
 				
@@ -291,8 +336,6 @@ function GetObsData(DateTime){
 					ObsData[code].pressure=new Array(null, null);
 				}
 				
-				//gjPoints:GeoJsonクラス→少し下で定義している(GeoJSONの書式に準拠)
-				//PointFeatureクラス→こちらも下で定義、GeoJSONの地物の書式に準拠
 				gjPoints.features.push(new PointFeature(dLon, dLat, code, DateTime, dTemp, dPrec1h, dWindDir, dWindSpd, ObsData));
   			}
   			
@@ -309,22 +352,10 @@ function GetObsData(DateTime){
 			});
 			
   			//AMeDAS気温(Cercle)
-  			lyTempCrl = L.geoJSON(gjPoints, {
-  				interactive: false,
-  				pointToLayer: function(feature, latlng){
-  					if(!isNaN(feature.properties.Temp)){
-  						let dT = feature.properties.Temp;
-  						return L.circleMarker(latlng, {
-  							interactive:false, radius:4, fillColor:Temp2Color(dT), fillOpacity:1, color:"#000000", weight:0.5, pane:"PaneCircle",
-  							attribution: "<a href='http://www.jma.go.jp/'>AMeDAS & 降水ナウキャスト:気象庁</a>" 
-  						});
-  					} else {
-  						return L.circleMarker(latlng, {
-  							interactive:false, radius:2, fillColor:"#404040", fillOpacity:1, color:"#000000", weight:0.5, pane:"PaneCircle",
-  							attribution: "<a href='http://www.jma.go.jp/'>AMeDAS & 降水ナウキャスト:気象庁</a>" 
-  						});
-  					}
-  				}
+  			lyTempCrl = new L.CanvasCircleLayer(gjPoints, {
+  				offsetX: -1.5, // 位置微調整用
+  				offsetY: -1.5, // 位置微調整用
+  				pane: 'PaneCircle'
   			});
 			
   			//AMeDAS観測点…ポップアップ表示用
@@ -335,7 +366,7 @@ function GetObsData(DateTime){
   					});
   				}
   			});
-  			lyObsPos.on("click", function(e){DrawGraph(e)}); //クリックイベント(ポップアップ用)
+  			lyObsPos.on("click", function(e){DrawGraph(e)});
   			
   			//AMeDAS観測点名称
 			lyObsName = new L.CanvasTextLayer(gjPoints, {
@@ -389,16 +420,13 @@ function GetObsData(DateTime){
   			map.addLayer(lyObsPos);
   			LayerSwitchByZScale();
 			
-			//【追加】ロード画面を消去
 			RemoveLoading();
 		});
-	//レーダーの表示制御
 	if(document.getElementById("btnRadar").text != "非表示"){
 		GetRadarTimes(DateTime);
 	}
 }
 
-//レーダーの時刻を取得する
 function GetRadarTimes(AMeDAS_Date){
 	arRadarTs = new Array();
 	const url='https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N1.json';
@@ -413,11 +441,10 @@ function GetRadarTimes(AMeDAS_Date){
 		);
 }
 
-//レーダーのレイヤを追加する
 function AddRadarLayer(AMeDAS_Date){
 	if(lyRadar != null && map.hasLayer(lyRadar)){map.removeLayer(lyRadar); lyRadar=null;}
 	let dtAMeDAS = Fmtd2DateTime(AMeDAS_Date);
-	dtAMeDAS.setHours(dtAMeDAS.getHours() - 9); //JST→UTC
+	dtAMeDAS.setHours(dtAMeDAS.getHours() - 9);
 	AMeDAS_Date = formatDate(dtAMeDAS, "yyyyMMddHHmmss");
 	let elRdr = document.getElementById("btnRadar");
 	let dOpacity = 1 - Number(elSlider.value) /100;
@@ -436,7 +463,6 @@ function AddRadarLayer(AMeDAS_Date){
 	elRdr.text = "表示不可";
 }
 
-//レーダー画像の表示・非表示切り替え
 function SwitchRadar(){
 	if(map.hasLayer(lyRadar)){
 		map.removeLayer(lyRadar);
@@ -449,7 +475,6 @@ function SwitchRadar(){
 	;}
 }
 
-//レーダー画像の透過度(スライダ)
 function ChangeRadarOpacity(){
 	if(lyRadar && map.hasLayer(lyRadar)){
 		let dOpacity = 1 - Number(elSlider.value) /100;
@@ -457,7 +482,6 @@ function ChangeRadarOpacity(){
 	}
 }
 
-//ZoomLevelが奇数の場合対策
 (function () {
 	if (typeof L === 'undefined') {
 		throw new Error('Leaflet must be loaded before the ZoomSubstitute plugin.');
@@ -467,7 +491,6 @@ function ChangeRadarOpacity(){
 			const actualZoom = coords.z;
 			const useZoom = (actualZoom % 2 === 1) ? actualZoom - 1 : actualZoom;
 			if (coords.z % 2 == 0){
-				//偶数Zoomのとき → そのままタイル出力
 				const tile = document.createElement('img');
 				tile.setAttribute('role', 'presentation');
 				tile.className = 'leaflet-tile';
@@ -482,7 +505,6 @@ function ChangeRadarOpacity(){
  				tile.src = url;
 				return tile;
 			} else {
-				//奇数Zoomのとき → zoom-1のタイルを引き延ばして表示する
 				const scale = 2;
 				const tileSize = this.options.tileSize;
 				
@@ -491,11 +513,10 @@ function ChangeRadarOpacity(){
 				const deltX = (coords.x % 2 == 0) ? 0 : -tileSize;
 				const deltY = (coords.y % 2 == 0) ? 0 : -tileSize;
 				
-				//親要素にDivを追加
 				const tileP = document.createElement('div');
 				tileP.style.width = tileSize + 'px';
 				tileP.style.height = tileSize + 'px';
-				tileP.style.overflow= 'hidden'; //拡大した画像の範囲外の部分を隠すため
+				tileP.style.overflow= 'hidden';
 				const url = L.Util.template(this._url, {
 					s: this._getSubdomain(coords),
 					z: coords.z - 1,
@@ -523,8 +544,6 @@ function ChangeRadarOpacity(){
 	};
 })();
 
-//▼凡例
-//気温から色に対応したクラス名を返す
 function Temp2Cls(Temp){
 	let i = Math.ceil((Temp-dMinT)/dTStep)
 	if(i < 0){i = 0}
@@ -538,7 +557,6 @@ function Temp2Color(Temp){
 	return sColors[i];
 }
 
-//凡例種別制御
 jQuery(function() {
 	$('[name="tscale"]').on('change', function(){
 		let val = $(this).val();
@@ -546,8 +564,6 @@ jQuery(function() {
 		let elTStep = document.legend_temp.elements[3];
 		
 		if(val == "jma"){
-			//気象庁準拠の凡例(気温レンジ)
-			//テキストボックスを無効 → 値更新
 			elMinT.disabled=true;
 			elTStep.disabled=true;
 			dMinT = -10;
@@ -555,25 +571,17 @@ jQuery(function() {
 			elMinT.value=dMinT;
 			elTStep.value=dTStep;
 			
-			//凡例・気温レイヤの色を更新
 			if(ctLegT){ map.removeControl(ctLegT); ctLegT = null; }
 			SetTempRange();
 		} else {
-			//独自凡例(気温レンジ)
-			//テキストボックスを有効に
 			elMinT.disabled=false;
 			elTStep.disabled=false;
-			
-			//凡例・気温レイヤの更新は「反映」ボタン押下時のみ
 		}
-		//URLを更新(クエリ:t0・dt)
 		ReplaceURL();
 	});
 });
 
-//気温のレンジ・幅
 function SetTempRange(){
-	//ロード画面を表示
 	IndicateLoading();
 	setTimeout(function() {
 		try{
@@ -583,7 +591,6 @@ function SetTempRange(){
 			if(isNaN(document.legend_temp.elements[3].value)){dTStep = 5;}
 			else{dTStep = Number(document.legend_temp.elements[3].value);}
 			
-			//凡例再描画
 			if(ctLegT){
 				map.removeControl(ctLegT);
 				ctLegT = null;
@@ -593,16 +600,14 @@ function SetTempRange(){
 			GetObsInfo(elOpt.options[elOpt.selectedIndex].value);
 			ReplaceURL();
 		} finally {
-			RemoveLoading(); //全て終わったときにロード画面消去
+			RemoveLoading();
 		}
 	}, 100);
 }
 
-//レンジ・幅を凡例に反映
 function SwitchLegendT(){
 	let elLegend = document.getElementById("btnLegend");
 	if(!ctLegT){
-		//凡例なし→凡例を作成して地図に追加する
 		ctLegT = L.control({position: 'bottomright'});
 		ctLegT.onAdd = function(map){
 			let div = L.DomUtil.create('div', 'legend');
@@ -634,7 +639,6 @@ function SwitchLegendT(){
 	}
 }
 
-//▼GeoJson関連の定義
 class GeoJson{
 	constructor(){
 		this.type = 'FeatureCollection';
@@ -669,17 +673,14 @@ class PointFeature{
 		this.geometry['type']="Point";
 		this.geometry['coordinates']=[x, y];
 		
-		//主要以外の観測点情報
 		this.ObsInfo=htObsInfo[Code];
 		this.ObsData=ObsData[Code];
 	}
 }
 
-// スケールによる表示制御
 function LayerSwitchByZScale(){
 	iZoom = map.getZoom();
 	
-	// 気温・矢羽の制御
 	if(iZoom < 9){
 		if(lyTempStr && map.hasLayer(lyTempStr)){ map.removeLayer(lyTempStr); }
 		if(lyWindBarbL && map.hasLayer(lyWindBarbL)){ map.removeLayer(lyWindBarbL); }
@@ -690,7 +691,6 @@ function LayerSwitchByZScale(){
 		if(lyTempStr && !map.hasLayer(lyTempStr)){ map.addLayer(lyTempStr); }
 	}
 	
-	// 観測点名表示の制御
 	if(iZoom < 10){
 		if(lyObsName && map.hasLayer(lyObsName)){ map.removeLayer(lyObsName); }
 	} else {
@@ -704,23 +704,20 @@ function AfterMove(){
 	dLat = map.getCenter().lat.toFixed(6);
 	ReplaceURL();
 	
-	// ★ 修正: 表示制御ロジックを LayerSwitchByZScale に一元化
 	LayerSwitchByZScale();
 }
-//URL変更
+
 function ReplaceURL(){
 	let sQuery = "lat=" + dLat + "&"
 		+ "lon=" + dLon + "&"
 		+ "z=" + iZoom + "&b_map=" + $('[name="lyr"]:checked').val();
 	
-	//気温レンジ
 	if(dMinT != -10 || dTStep != 5){
 		sQuery = sQuery + "&t0=" + dMinT + "&" + "dt=" + dTStep;
 	}
 	window.history.replaceState('', '', '?' + sQuery);
 }
 
-//背景図選択
 jQuery(function() {
 	$('[name="lyr"]').on('change', function(){
 		let Name = $(this).val();
@@ -728,6 +725,7 @@ jQuery(function() {
 		SelectMap(Name);
 	});
 });
+
 function SelectMap(Name){
 	if(Name == "blk"){
 		map.removeLayer(lyPal); map.removeLayer(lyShd); map.addLayer(lyBlk);
@@ -738,9 +736,7 @@ function SelectMap(Name){
 	}
 }
 
-//現在地へ移動する
 function MoveToCurPos(){
-	//現在地取得API対応
 	if(!navigator.geolocation){
 		alert("位置情報を取得できません(ブラウザが非対応)。");
 		let elPos = document.getElementById("btnCurPos");
@@ -748,11 +744,8 @@ function MoveToCurPos(){
 		return;
 	}
 	
-	//位置情報取得Option
-	//参考: https://www.achiachi.net/blog/leaflet/geolocation
 	let opts = { enableHighAccuracy:false, timeout:5000, maximumAge:0 };
 	
-	//取得成功時
 	function success(pos){ 
 		map.setView([pos.coords.latitude, pos.coords.longitude]);
 		let elPos = document.getElementById("btnCurPos");
@@ -760,18 +753,15 @@ function MoveToCurPos(){
 		return;
 	}
 	
-	//取得失敗時
 	function fail(ex) { 
 		alert("位置情報を取得できません(タイムアウト・ブロック等)。"); 
 		let elPos = document.getElementById("btnCurPos");
 		elPos.style.background="#888";
 	}
 	
-	//コマンド実行
 	navigator.geolocation.getCurrentPosition(success, fail, opts);
 }
 
-//初期表示のPopup
 function IndicatePopupNotice(){
 	if( !localStorage.getItem('PopupNotice') ) {
 		localStorage.setItem('PopupNotice', 'on');
@@ -786,28 +776,19 @@ function IndicatePopupNotice(){
 	}
 }
 
-//PopUpにグラフを表示する
 function DrawGraph(e){
-	//実処理は別スレッド(async)へ
 	setTimeout(DrawGraph_2, 0, e.layer);
-	
-	//「くるくる」を表示
 	IndicateLoading();
 }
 
-//PopUpにグラフを表示する(実処理：非同期版)
-//Async/Awaitを用いた非同期取得 + 競合回避
 async function DrawGraph_2(layer){
 	try {
 	const pps = layer.feature.properties;
 	
-	//現在処理中のコードをグローバル変数に記録(Race Condition対策)
 	sCurrentCode = pps.Code;
 	
-	// 選択された時刻(yyyyMMddHHmmss -> Date)
 	const dtNewest = Fmtd2DateTime(document.getElementById("lsDateTime").value);
 	
-	// グラフラベル(10分刻みで24時間分 = 144)
 	const sLabs = new Array(144);
 	let dtDat = new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate());
 	for(let i = 0; i < sLabs.length; i++){
@@ -815,7 +796,6 @@ async function DrawGraph_2(layer){
 	  dtDat.setMinutes(dtDat.getMinutes() + 10);
 	}
 	
-	// データ初期化 (htData はグローバルで既存)
 	for(let elem in htData){
 		for(let iD = 0; iD < htData[elem].values.length; iD++){
 			htData[elem].values[iD] = new Array(sLabs.length).fill(null);
@@ -823,21 +803,17 @@ async function DrawGraph_2(layer){
 		}
 	}
 	
-	// --- 非同期フェッチのヘルパー ---
 	async function fetchJSON(url){
 		try{
 			const resp = await fetch(url, {cache: "no-store"});
 			if(!resp.ok) return null;
 			return await resp.json();
 		} catch(e){
-			// ネットワークエラー等は null を返して続行
 			console.warn("fetchJSON error:", url, e);
 			return null;
 		}
 	}
 	
-	// --- リクエスト URL を作る ---
-	// 仕様: iD = 0 (当日), 1 (前日), 2 (前々日)
 	const requests = [];
 	for(let iD = 0; iD < 3; iD++){
 		for(let iH = 0; iH < 24; iH += 3){
@@ -849,8 +825,6 @@ async function DrawGraph_2(layer){
 		}
 	}
 	
-	// --- 並列実行制限付きマッパー ---
-	// CONCURRENCY を適宜調整
 	const CONCURRENCY = 4;
 	async function mapWithConcurrency(items, worker){
 		const results = new Array(items.length);
@@ -859,7 +833,6 @@ async function DrawGraph_2(layer){
 			while(true){
 				const i = idx++;
 				if(i >= items.length) break;
-				// 別の地点がクリックされていたら処理を中断
 				if(sCurrentCode !== pps.Code) return;
 				try{
 					results[i] = await worker(items[i], i);
@@ -872,31 +845,24 @@ async function DrawGraph_2(layer){
 		return results;
 	}
 	
-	// --- worker: 実際に取得して htData を埋める ---
 	await mapWithConcurrency(requests, async (req) => {
-		// 別の地点がクリックされていたらfetchしない
 		if(sCurrentCode !== pps.Code) return;
 		
 		const data = await fetchJSON(req.url);
-		if(!data) return; // 取得失敗はスキップ
+		if(!data) return;
 		
-		// fetch後に別の地点になっていたら反映しない
 		if(sCurrentCode !== pps.Code) return;
 		
-		// data は {"yyyyMMddHHmmss": { elem: [value, flag], ... }, ...}
 		for(const key in data){
-			// idx は 10分間隔インデックス (0..143 等)
 			const t = Fmtd2DateTime(key).getTime();
 			const base = req.baseDate.getTime();
 			const idx = Math.round((t - base) / (10 * 60 * 1000));
 			if(idx < 0 || idx >= sLabs.length) continue;
 			
-			// layer.feature.ObsData にある要素のみ処理する
 			for(const elem in layer.feature.ObsData){
 				if(!htData[elem]) continue;
 				const cell = data[key][elem];
 				if(cell && cell[1] === 0){
-					// iD (0/1/2) のスライスに格納
 					htData[elem].values[req.iD][idx] = cell[0];
 					htData[elem].N++;
 				}
@@ -904,10 +870,8 @@ async function DrawGraph_2(layer){
 		}
 	});
 	
-	// 最終確認：別の地点がクリックされていたら描画しない
 	if(sCurrentCode !== pps.Code) return;
 	
-	// --- 日付凡例の更新 ---
 	for(let iD = 0; iD < 3; iD++){
 		const dtL = new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate() - iD);
 		const elLegDay = document.getElementsByClassName('Popup_Legend_Day' + iD);
@@ -916,7 +880,6 @@ async function DrawGraph_2(layer){
 		}
 	}
 	
-	// ポップアップ処理
 	layer.closePopup();
 	
 	const elBg = document.getElementById('Popup_Bg');
@@ -928,16 +891,13 @@ async function DrawGraph_2(layer){
 	elTt.innerText = pps.Name + ' (' + pps.NameKana + ' 標高:' + pps.Altitude + 'm)';
 	elCtTx.innerHTML = formatDate(dtNewest, "yyyy/MM/dd HH:mm") + '<br>\n';
 	
-	// ポップアップ幅制御
 	const ppWidth = 600;
 	if(ppWidth <= elBg.clientWidth) { elGp.style.width = ppWidth + "px"; }
 	else { elGp.style.width = elBg.clientWidth + "px"; }
 	
-	// Chart.js 用のデータ生成 & 表示
 	for(const elem in htData){
 		const cnt = document.getElementById("cnt_" + elem);
 		if(htData[elem].N == 0){
-			//観測データの無い気象要素は非表示
 			if(cnt) cnt.style.display = "none";
 		} else {
 			if(cnt) cnt.style.display = "block";
@@ -946,7 +906,6 @@ async function DrawGraph_2(layer){
 			const cvs = cvsEl.getContext("2d");
 			const data = CreateDataForChartJS(sLabs, htData[elem]);
 			
-			// Chart オプションの整形
 			data.options = {};
 			data.options.legend = { display: false };
 			data.options.scales = {};
@@ -956,7 +915,6 @@ async function DrawGraph_2(layer){
 			data.options.scales.xAxes[0] = { ticks: { maxTicksLimit: 13 } };
 			
 			if(elem === 'precipitation10m'){
-				// flatten 3次元配列対応
 				const flatVals = [].concat(...htData[elem].values);
 				const maxVal = flatVals.length ? Math.max.apply(null, flatVals.filter(v=>v!=null)) : 0;
 				if((isFinite(maxVal) ? maxVal : 0) < 1.0){
@@ -964,16 +922,13 @@ async function DrawGraph_2(layer){
 				}
 			}
 			
-			// 既存チャートがあれば破棄
 			if(htCharts[elem]) { try { htCharts[elem].destroy(); } catch(e) { console.warn("destroy chart failed", e); } }
 			htCharts[elem] = new Chart(cvs, data);
 			
-			// ポップアップ冒頭テキスト追記
 			elCtTx.innerHTML = elCtTx.innerHTML + htData[elem].name + ':' + layer.feature.ObsData[elem][0] + '[' + htData[elem].unit + '] ';
 		}
 	}
 	
-	// ポップアップ高さ制御
 	const diff_margin = 50;
 	let diff_bp = elBg.clientHeight - elGp.clientHeight;
 	let diff_pc = elGp.clientHeight - elCt.clientHeight;
@@ -984,7 +939,6 @@ async function DrawGraph_2(layer){
 		elCt.style.height = (elBg.clientHeight - diff_margin - diff_pc - diff) + "px";
 	}
 	
-	// ポップアップ表示
 	elBg.classList.add('js_active');
 	elGp.classList.add('js_active');
 	elBg.onclick = function() {
@@ -995,14 +949,12 @@ async function DrawGraph_2(layer){
 	} catch(err) {
 		console.error("DrawGraph_2 error:", err);
 	} finally {
-		// 進捗表示除去（ただし、現在地が最新なら）
 		if(sCurrentCode == layer.feature.properties.Code){
 			try { RemoveLoading(); } catch(e) { console.warn("RemoveLoading failed:", e); }
 		}
 	}
-} //ここまで:PopUpにグラフを表示する(実処理：非同期版)
+}
 
-//Chart.jsに載せるためのデータを作る
 function CreateDataForChartJS(labels, values){
 	let Data = {
 		type: values.type,
@@ -1018,7 +970,6 @@ function CreateDataForChartJS(labels, values){
 	return(Data);
 }
 
-//loading画面 →https://se-log.blogspot.com/2019/11/javascript-screenlook.html
 function IndicateLoading(){
 	let elSpan = document.createElement("span");
 	elSpan.id = "loading_circle";
@@ -1028,19 +979,16 @@ function IndicateLoading(){
 	
 	let elBody = document.getElementsByTagName("body").item(0);
 	
-	//exDiv・elSpan(くるくる)のスタイルはCSSに記述
 	elDiv.appendChild(elSpan);
 	elBody.appendChild(elDiv);
 }
+
 function RemoveLoading(elLoading){
 	const elDiv = document.getElementById("loading");
 	if (!elDiv) {return;}
 	if (elDiv.parentNode) { elDiv.parentNode.removeChild(elDiv); }
 }
 
-//▼日付処理関係
-//Dateオブジェクトから指定書式の文字列を返す
-//https://zukucode.com/2017/04/javascript-date-format.html
 function formatDate (date, format) {
 	format = format.replace(/yyyy/g, date.getFullYear());
 	format = format.replace(/MM/g, ('0' + (date.getMonth() + 1)).slice(-2));
@@ -1051,13 +999,12 @@ function formatDate (date, format) {
 	format = format.replace(/SSS/g, ('00' + date.getMilliseconds()).slice(-3));
 	return format;
 };
-//yyyyMMddHHmmSS→ yyyy/MM/dd HH:mm
+
 function DateTime2Fmtd(DateTime){
 	return 	DateTime.substring(0,4)+'/'+DateTime.substring(4,6)+'/'+DateTime.substring(6,8)+' '+
 		DateTime.substring(8,10)+':'+DateTime.substring(10,12);
 }
 
-//yyyyMMddHHmmSS→Date
 function Fmtd2DateTime(FormattedString){
 	let iYr = Number(FormattedString.substring(0,4));
 	let iMt = Number(FormattedString.substring(4,6))-1;
@@ -1066,6 +1013,3 @@ function Fmtd2DateTime(FormattedString){
 	let iMn = Number(FormattedString.substring(10,12));
 	return new Date(iYr, iMt, iDy, iHr, iMn);
 }
-
-//
-
