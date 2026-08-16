@@ -63,7 +63,7 @@ L.CanvasFeatureLayer = L.Layer.extend({
         ctx.clearRect(0, 0, size.x, size.y);
 
         if (this._geojson && this._geojson.features) {
-            var bounds = this._map.getBounds().pad(0.02);
+            var bounds = this._map.getBounds().pad(0.05);
             this._drawFeatures(ctx, bounds);
         }
         ctx.restore();
@@ -783,169 +783,238 @@ function DrawGraph(e){
 
 async function DrawGraph_2(layer){
 	try {
-	const pps = layer.feature.properties;
-	
-	sCurrentCode = pps.Code;
-	
-	const dtNewest = Fmtd2DateTime(document.getElementById("lsDateTime").value);
-	
-	const sLabs = new Array(144);
-	let dtDat = new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate());
-	for(let i = 0; i < sLabs.length; i++){
-	  sLabs[i] = formatDate(dtDat, "HH:mm");
-	  dtDat.setMinutes(dtDat.getMinutes() + 10);
-	}
-	
-	for(let elem in htData){
-		for(let iD = 0; iD < htData[elem].values.length; iD++){
-			htData[elem].values[iD] = new Array(sLabs.length).fill(null);
-			htData[elem].N = 0;
+		//対象観測点
+		const pps = layer.feature.properties;
+		sCurrentCode = pps.Code;
+		
+		//表示時刻
+		const dtNewest = Fmtd2DateTime(document.getElementById("lsDateTime").value);
+		
+		//ラベル:144=24*6
+		const sLabs = new Array(144);
+		let dtDat = new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate());
+		for(let i = 0; i < sLabs.length; i++){
+		  sLabs[i] = formatDate(dtDat, "HH:mm");
+		  dtDat.setMinutes(dtDat.getMinutes() + 10);
 		}
-	}
-	
-	async function fetchJSON(url){
-		try{
-			const resp = await fetch(url, {cache: "no-store"});
-			if(!resp.ok) return null;
-			return await resp.json();
-		} catch(e){
-			console.warn("fetchJSON error:", url, e);
-			return null;
+		
+		for(let elem in htData){
+			for(let iD = 0; iD < htData[elem].values.length; iD++){
+				htData[elem].values[iD] = new Array(sLabs.length).fill(null);
+				htData[elem].N = 0;
+			}
 		}
-	}
-	
-	const requests = [];
-	for(let iD = 0; iD < 3; iD++){
-		for(let iH = 0; iH < 24; iH += 3){
-			  let dt = new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate() - iD);
-			  dt.setHours(dt.getHours() + iH);
-			  if(dtNewest < dt) break;
-			  const url = "https://www.jma.go.jp/bosai/amedas/data/point/" + pps.Code + "/" + formatDate(dt, "yyyyMMdd_HH") + ".json";
-			  requests.push({url, iD, baseDate: new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate() - iD)});
+		
+		async function fetchJSON(url){
+			try{
+				const resp = await fetch(url, {cache: "no-store"});
+				if(!resp.ok) return null;
+				return await resp.json();
+			} catch(e){
+				console.warn("fetchJSON error:", url, e);
+				return null;
+			}
 		}
-	}
-	
-	const CONCURRENCY = 4;
-	async function mapWithConcurrency(items, worker){
-		const results = new Array(items.length);
-		let idx = 0;
-		const runners = new Array(CONCURRENCY).fill(null).map(async () => {
-			while(true){
-				const i = idx++;
-				if(i >= items.length) break;
-				if(sCurrentCode !== pps.Code) return;
-				try{
-					results[i] = await worker(items[i], i);
-				} catch(e){
-					results[i] = null;
+		
+		//24時間積算降水量のため4日分を取得
+		const requests = [];
+		for(let iD = 0; iD < 4; iD++){
+			for(let iH = 0; iH < 24; iH += 3){
+				  let dt = new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate() - iD);
+				  dt.setHours(dt.getHours() + iH);
+				  if(dtNewest < dt) break;
+				  const url = "https://www.jma.go.jp/bosai/amedas/data/point/" + pps.Code + "/" + formatDate(dt, "yyyyMMdd_HH") + ".json";
+				  requests.push({url, iD, baseDate: new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate() - iD)});
+			}
+		}
+		
+		const CONCURRENCY = 4;
+		async function mapWithConcurrency(items, worker){
+			const results = new Array(items.length);
+			let idx = 0;
+			const runners = new Array(CONCURRENCY).fill(null).map(async () => {
+				while(true){
+					const i = idx++;
+					if(i >= items.length) break;
+					if(sCurrentCode !== pps.Code) return;
+					try{
+						results[i] = await worker(items[i], i);
+					} catch(e){
+						results[i] = null;
+					}
+				}
+			});
+			await Promise.all(runners);
+			return results;
+		}
+		
+		await mapWithConcurrency(requests, async (req) => {
+			if(sCurrentCode !== pps.Code) return;
+			
+			const data = await fetchJSON(req.url);
+			if(!data) return;
+			
+			if(sCurrentCode !== pps.Code) return;
+			
+			for(const key in data){
+				const t = Fmtd2DateTime(key).getTime();
+				const base = req.baseDate.getTime();
+				const idx = Math.round((t - base) / (10 * 60 * 1000));
+				if(idx < 0 || idx >= sLabs.length) continue;
+				
+				for(const elem in layer.feature.ObsData){
+					if(!htData[elem]) continue;
+					const cell = data[key][elem];
+					if(cell && cell[1] === 0){
+						htData[elem].values[req.iD][idx] = cell[0];
+						htData[elem].N++;
+					}
 				}
 			}
 		});
-		await Promise.all(runners);
-		return results;
-	}
-	
-	await mapWithConcurrency(requests, async (req) => {
-		if(sCurrentCode !== pps.Code) return;
-		
-		const data = await fetchJSON(req.url);
-		if(!data) return;
 		
 		if(sCurrentCode !== pps.Code) return;
 		
-		for(const key in data){
-			const t = Fmtd2DateTime(key).getTime();
-			const base = req.baseDate.getTime();
-			const idx = Math.round((t - base) / (10 * 60 * 1000));
-			if(idx < 0 || idx >= sLabs.length) continue;
+		// ▼▼24時間積算降水量の計算▼▼
+		if (htData.precipitation10m && htData.precipitation24h) {
+		    const prec10mFlat = new Array(4 * 144).fill(null);
+		    for (let iD = 0; iD < 4; iD++) {
+		        for (let idx = 0; idx < 144; idx++) {
+		            const flatIdx = (3 - iD) * 144 + idx;
+		            const val = htData.precipitation10m.values[iD][idx];
+		            // 欠損値(null/undefined)は計算用に 0 扱い、またはそのまま保持
+		            prec10mFlat[flatIdx] = (val !== null && val !== undefined) ? val : null;
+		        }
+		    }
 			
-			for(const elem in layer.feature.ObsData){
-				if(!htData[elem]) continue;
-				const cell = data[key][elem];
-				if(cell && cell[1] === 0){
-					htData[elem].values[req.iD][idx] = cell[0];
-					htData[elem].N++;
+		   htData.precipitation24h.N = 0;
+			
+		   // スライディングウィンドウ法でO(N)に最適化
+			for (let iD = 0; iD < 3; iD++) {
+		   	let currentSum = 0;
+				let nullCount = 0;
+				
+		      // 各日の最初の時点 (idx = 0) で過去144コマ分を初期計算
+				const startFlatIdx = (3 - iD) * 144;
+				for (let k = startFlatIdx - 143; k <= startFlatIdx; k++) {
+					if (k < 0 || prec10mFlat[k] === null) {
+						nullCount++;
+					} else {
+						currentSum += prec10mFlat[k];
+					}
+				}
+				
+				for (let idx = 0; idx < 144; idx++) {
+					const flatIdx = (3 - iD) * 144 + idx;
+					
+					if (idx > 0) {
+						// ウィンドウを1コマ進める：古い要素を引いて新しい要素を足す
+						const oldVal = prec10mFlat[flatIdx - 144];
+						const newVal = prec10mFlat[flatIdx];
+						
+						if (flatIdx - 144 < 0 || oldVal === null) nullCount--;
+						else currentSum -= oldVal;
+						
+						if (newVal === null) nullCount++;
+						else currentSum += newVal;
+					}
+					
+					// 過去144コマ中、許容範囲内（例: 許容欠損コマ数を10コマ以下に指定、あるいは全揃い条件）
+					// 完全に欠損を許さない場合は nullCount === 0
+					if (nullCount === 0) {
+						const val24h = Math.round(currentSum * 10) / 10;
+						htData.precipitation24h.values[iD][idx] = val24h;
+						htData.precipitation24h.N++;
+					} else {
+						htData.precipitation24h.values[iD][idx] = null;
+					}
 				}
 			}
 		}
-	});
-	
-	if(sCurrentCode !== pps.Code) return;
-	
-	for(let iD = 0; iD < 3; iD++){
-		const dtL = new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate() - iD);
-		const elLegDay = document.getElementsByClassName('Popup_Legend_Day' + iD);
-		for(let i = 0; i < elLegDay.length; i++){
-			elLegDay[i].innerHTML = formatDate(dtL, "yyyy/MM/dd");
+		
+		for(let iD = 0; iD < 3; iD++){
+			const dtL = new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate() - iD);
+			const elLegDay = document.getElementsByClassName('Popup_Legend_Day' + iD);
+			for(let i = 0; i < elLegDay.length; i++){
+				elLegDay[i].innerHTML = formatDate(dtL, "yyyy/MM/dd");
+			}
 		}
-	}
-	
-	layer.closePopup();
-	
-	const elBg = document.getElementById('Popup_Bg');
-	const elGp = document.getElementById('PopupGraph');
-	const elTt = document.getElementById('PopupGraph_title');
-	const elCt = document.getElementById('PopupGraph_content');
-	const elCtTx = document.getElementById('PopupGraph_content_text');
-	
-	elTt.innerText = pps.Name + ' (' + pps.NameKana + ' 標高:' + pps.Altitude + 'm)';
-	elCtTx.innerHTML = formatDate(dtNewest, "yyyy/MM/dd HH:mm") + '<br>\n';
-	
-	const ppWidth = 600;
-	if(ppWidth <= elBg.clientWidth) { elGp.style.width = ppWidth + "px"; }
-	else { elGp.style.width = elBg.clientWidth + "px"; }
-	
-	for(const elem in htData){
-		const cnt = document.getElementById("cnt_" + elem);
-		if(htData[elem].N == 0){
-			if(cnt) cnt.style.display = "none";
-		} else {
-			if(cnt) cnt.style.display = "block";
-			const cvsEl = document.getElementById("cvs_" + elem);
-			if(!cvsEl) continue;
-			const cvs = cvsEl.getContext("2d");
-			const data = CreateDataForChartJS(sLabs, htData[elem]);
-			
-			data.options = {};
-			data.options.legend = { display: false };
-			data.options.scales = {};
-			data.options.scales.yAxes = [];
-			data.options.scales.yAxes[0] = { scaleLabel: { labelString: htData[elem].name } };
-			data.options.scales.xAxes = [];
-			data.options.scales.xAxes[0] = { ticks: { maxTicksLimit: 13 } };
-			
-			if(elem === 'precipitation10m'){
-				const flatVals = [].concat(...htData[elem].values);
-				const maxVal = flatVals.length ? Math.max.apply(null, flatVals.filter(v=>v!=null)) : 0;
-				if((isFinite(maxVal) ? maxVal : 0) < 1.0){
-					data.options.scales.yAxes[0].ticks = { min: 0, max: 1 };
+		
+		layer.closePopup();
+		
+		const elBg = document.getElementById('Popup_Bg');
+		const elGp = document.getElementById('PopupGraph');
+		const elTt = document.getElementById('PopupGraph_title');
+		const elCt = document.getElementById('PopupGraph_content');
+		const elCtTx = document.getElementById('PopupGraph_content_text');
+		
+		elTt.innerText = pps.Name + ' (' + pps.NameKana + ' 標高:' + pps.Altitude + 'm)';
+		elCtTx.innerHTML = formatDate(dtNewest, "yyyy/MM/dd HH:mm") + '<br>\n';
+		
+		const ppWidth = 600;
+		if(ppWidth <= elBg.clientWidth) { elGp.style.width = ppWidth + "px"; }
+		else { elGp.style.width = elBg.clientWidth + "px"; }
+		
+		for(const elem in htData){
+			const cnt = document.getElementById("cnt_" + elem);
+			if(htData[elem].N == 0){
+				if(cnt) cnt.style.display = "none";
+			} else {
+				if(cnt) cnt.style.display = "block";
+				const cvsEl = document.getElementById("cvs_" + elem);
+				if(!cvsEl) continue;
+				const cvs = cvsEl.getContext("2d");
+				const data = CreateDataForChartJS(sLabs, htData[elem]);
+				
+				data.options = {};
+				data.options.legend = { display: false };
+				data.options.scales = {};
+				data.options.scales.yAxes = [];
+				data.options.scales.yAxes[0] = { scaleLabel: { labelString: htData[elem].name } };
+				data.options.scales.xAxes = [];
+				data.options.scales.xAxes[0] = { ticks: { maxTicksLimit: 13 } };
+				
+				if(elem === 'precipitation10m'){
+					const flatVals = [].concat(...htData[elem].values);
+					const maxVal = flatVals.length ? Math.max.apply(null, flatVals.filter(v=>v!=null)) : 0;
+					if((isFinite(maxVal) ? maxVal : 0) < 1.0){
+						data.options.scales.yAxes[0].ticks = { min: 0, max: 1 };
+					}
+				}
+				
+				if(htCharts[elem]) { try { htCharts[elem].destroy(); } catch(e) { console.warn("destroy chart failed", e); } }
+				htCharts[elem] = new Chart(cvs, data);
+				
+				//elCtTx.innerHTML = elCtTx.innerHTML + htData[elem].name + ':' + layer.feature.ObsData[elem][0] + '[' + htData[elem].unit + '] ';
+				// 変更後（ObsDataに無い計算項目の安全参照を追加）
+				if (layer.feature.ObsData[elem] && layer.feature.ObsData[elem][0] !== undefined) {
+					elCtTx.innerHTML += htData[elem].name + ':' + layer.feature.ObsData[elem][0] + '[' + htData[elem].unit + '] ';
+				} else if (elem === 'precipitation24h') {
+					const curIdx = Math.round((dtNewest.getTime() - new Date(dtNewest.getFullYear(), dtNewest.getMonth(), dtNewest.getDate()).getTime()) / (10 * 60 * 1000));
+					const val24 = htData.precipitation24h.values[0][curIdx];
+					if (val24 !== null && val24 !== undefined) {
+						elCtTx.innerHTML += htData[elem].name + ':' + val24 + '[' + htData[elem].unit + '] ';
+					}
 				}
 			}
-			
-			if(htCharts[elem]) { try { htCharts[elem].destroy(); } catch(e) { console.warn("destroy chart failed", e); } }
-			htCharts[elem] = new Chart(cvs, data);
-			
-			elCtTx.innerHTML = elCtTx.innerHTML + htData[elem].name + ':' + layer.feature.ObsData[elem][0] + '[' + htData[elem].unit + '] ';
 		}
-	}
-	
-	const diff_margin = 50;
-	let diff_bp = elBg.clientHeight - elGp.clientHeight;
-	let diff_pc = elGp.clientHeight - elCt.clientHeight;
-	if(elBg.clientHeight - diff_margin < elGp.clientHeight){
-		elGp.style.height = (elBg.clientHeight - diff_margin) + "px";
-		elCt.style.height = (elBg.clientHeight - diff_margin - diff_pc) + "px";
-		let diff = elCt.clientHeight - (elBg.clientHeight - diff_margin - diff_pc);
-		elCt.style.height = (elBg.clientHeight - diff_margin - diff_pc - diff) + "px";
-	}
-	
-	elBg.classList.add('js_active');
-	elGp.classList.add('js_active');
-	elBg.onclick = function() {
-		elBg.classList.remove('js_active');
-		elGp.classList.remove('js_active');
-	}
-	
+		
+		const diff_margin = 50;
+		let diff_bp = elBg.clientHeight - elGp.clientHeight;
+		let diff_pc = elGp.clientHeight - elCt.clientHeight;
+		if(elBg.clientHeight - diff_margin < elGp.clientHeight){
+			elGp.style.height = (elBg.clientHeight - diff_margin) + "px";
+			elCt.style.height = (elBg.clientHeight - diff_margin - diff_pc) + "px";
+			let diff = elCt.clientHeight - (elBg.clientHeight - diff_margin - diff_pc);
+			elCt.style.height = (elBg.clientHeight - diff_margin - diff_pc - diff) + "px";
+		}
+		
+		elBg.classList.add('js_active');
+		elGp.classList.add('js_active');
+		elBg.onclick = function() {
+			elBg.classList.remove('js_active');
+			elGp.classList.remove('js_active');
+		}
 	} catch(err) {
 		console.error("DrawGraph_2 error:", err);
 	} finally {

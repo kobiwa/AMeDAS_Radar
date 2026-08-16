@@ -51,7 +51,7 @@ h1 {margin:0px; padding:0px; border:0px; font-size:18px; font-weight:600; line-h
 #loading #loading_circle { display:block; position:relative; top:calc( 50% - 20px ); width:80px; height:80px; margin:0 auto; border: 8px solid #eee; border-top:7px solid #ccf; border-radius:50px; animation:loading 700ms linear 0ms infinite normal both;}
 @keyframes loading { 0% { transform: rotate( 0deg ); } 100% { transform: rotate( 360deg ); }}
 
-#cnt_precipitation10m, #cnt_temp, #cnt_humidity, #cnt_wind, #cnt_pressure, #cnt_snow{border: 1px solid #8AF; margin:5px 2px}
+#cnt_precipitation10m, #cnt_precipitation24h, #cnt_temp, #cnt_humidity, #cnt_wind, #cnt_pressure, #cnt_snow{border: 1px solid #8AF; margin:5px 2px}
 #PopupGraph_content_text{font-size:15px; }
 .cnt_legend{width:100%; margin:0px; background:#DEF; text-align:center; font-size:14px; padding: 3px 0px;}
 canvas{margin:2px;}

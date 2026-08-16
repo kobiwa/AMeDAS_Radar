@@ -37,7 +37,6 @@
 	        <div id="PopupGraph_content">
 	        	<div id="PopupGraph_content_text"></div>
 	        	
-	        	
 				<div id="cnt_temp" style="width:100%">
 					<div class="cnt_legend">気温 [℃]</div><canvas id="cvs_temp"></canvas>
 	        		<div style="text-align:center;">
@@ -45,6 +44,24 @@
 	        			<span class="Popup_Legend_Day1">前日</span>
 	        			<span class="Popup_Legend_Day2">前々日</span>
 	        		</div>
+				</div>
+				
+				<div id="cnt_precipitation10m" style="width:100%">
+					<div class="cnt_legend">降水量(10分間) [mm/10min]</div><canvas id="cvs_precipitation10m"></canvas>
+	        		<div style="text-align:center;">
+	        			<span class="Popup_Legend_Day0">当日</span>
+	        			<span class="Popup_Legend_Day1">前日</span>
+	        			<span class="Popup_Legend_Day2">前々日</span>
+	        		</div>
+				</div>
+				
+				<div id="cnt_precipitation24h" style="width:100%">
+					<div class="cnt_legend">過去24時間積算降水量 [mm]</div><canvas id="cvs_precipitation24h"></canvas>
+					<div style="text-align:center;">
+						<span class="Popup_Legend_Day0">当日</span>
+						<span class="Popup_Legend_Day1">前日</span>
+						<span class="Popup_Legend_Day2">前々日</span>
+					</div>
 				</div>
 				
 				<div id="cnt_humidity" style="width:100%">
@@ -73,16 +90,6 @@
 	        			<span class="Popup_Legend_Day2">前々日</span>
 	        		</div>
 				</div>
-				
-				<div id="cnt_precipitation10m" style="width:100%">
-					<div class="cnt_legend">降水量(10分間) [mm/10min]</div><canvas id="cvs_precipitation10m"></canvas>
-	        		<div style="text-align:center;">
-	        			<span class="Popup_Legend_Day0">当日</span>
-	        			<span class="Popup_Legend_Day1">前日</span>
-	        			<span class="Popup_Legend_Day2">前々日</span>
-	        		</div>
-				</div>
-				
 	        </div>
 	    </div>
 	</div>
@@ -162,12 +169,13 @@
 		//グラフ(ポップアップ表示、Key:気象庁JSONの要素名)
 		var htCharts={};
 		var htData = {
-			precipitation10m:{name:"10分間降水量", unit:"mm/10min", type:"bar", values:Array(3), N:0},
-			temp:{name:"気温", unit:"℃", type:"line" ,values:Array(3), N:0},
-			humidity:{name:"相対湿度", unit:"%", type:"line" ,values:Array(3), N:0},
-			wind:{name:"風速", unit:"m/s", type:"line" ,values:Array(3), N:0},
-			pressure:{name:"気圧", unit:"hPa", type:"line" ,values:Array(3), N:0},
-			snow:{name:"積雪深", unit:"cm", type:"line" ,values:Array(3), N:0},
+			precipitation10m:{name:"10分間降水量", unit:"mm/10min", type:"bar", values:Array(4), N:0},
+			precipitation24h:{name:"24時間積算降水量", unit:"mm", type:"line", values:Array(4), N:0},
+			temp:{name:"気温", unit:"℃", type:"line" ,values:Array(4), N:0},
+			humidity:{name:"相対湿度", unit:"%", type:"line" ,values:Array(4), N:0},
+			wind:{name:"風速", unit:"m/s", type:"line" ,values:Array(4), N:0},
+			pressure:{name:"気圧", unit:"hPa", type:"line" ,values:Array(4), N:0},
+			snow:{name:"積雪深", unit:"cm", type:"line" ,values:Array(4), N:0},
 		};
 		
 		// ★ メニュー内での操作が地図に伝わらないようにする
